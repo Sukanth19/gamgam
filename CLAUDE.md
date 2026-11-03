@@ -4,7 +4,7 @@ A learning project: a Python RAG app built on the Gemini API (free tier).
 The user is learning, so briefly explain the key decisions when changing code.
 
 ## Roadmap
-1. [done/in progress] Fetch game metadata from the RAWG API into SQLite, embed it, "similar games" search
+1. [built — code + tests done, awaiting first live run] Fetch game metadata from the RAWG API into SQLite, embed it, "similar games" search
 2. Play history (liked/disliked) -> taste-vector recommendations, with Gemini explaining each pick
 3. Scrape Fandom wikis (MediaWiki API) for 3-5 games, chunk by section, embed
 4. Lore Q&A: hybrid BM25 + vector search, answers with citations, says "I don't know" when unsure
