@@ -40,7 +40,9 @@ def test_auth_then_paginated_queries():
     bodies = []
     def handler(req):
         if req.url.host == "id.twitch.tv":
-            assert req.url.params["grant_type"] == "client_credentials"
+            assert req.url.path == "/oauth2/token"           # exact path, no trailing slash
+            assert "secret" not in str(req.url)              # secret only in the body
+            assert b"grant_type=client_credentials" in req.content
             return httpx.Response(200, json={"access_token": "tok", "expires_in": 5000})
         assert req.headers["Authorization"] == "Bearer tok"
         assert req.headers["Client-ID"] == "cid"

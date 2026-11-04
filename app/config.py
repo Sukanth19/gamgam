@@ -43,7 +43,7 @@ RAWG_MIN_INTERVAL_S = 0.25   # min gap between requests (be polite)
 RAWG_MAX_RETRIES = 5
 
 # --- IGDB (via Twitch auth) ---
-TWITCH_TOKEN_URL = "https://id.twitch.tv/oauth2/token"
+TWITCH_AUTH_BASE_URL = "https://id.twitch.tv"
 IGDB_BASE_URL = "https://api.igdb.com/v4"
 IGDB_PAGE_SIZE = 500         # IGDB max
 IGDB_MIN_INTERVAL_S = 0.3    # IGDB allows 4 requests/second

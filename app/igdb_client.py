@@ -35,10 +35,12 @@ class IgdbClient:
                  transport: httpx.BaseTransport | None = None):
         if not client_id or not client_secret:
             raise RuntimeError("TWITCH_CLIENT_ID / TWITCH_CLIENT_SECRET are not set (see .env.example)")
-        auth = ThrottledHttp(base_url=config.TWITCH_TOKEN_URL, min_interval=0,
+        auth = ThrottledHttp(base_url=config.TWITCH_AUTH_BASE_URL, min_interval=0,
                              max_retries=max_retries, transport=transport)
         try:
-            token = auth.request("POST", "", params={
+            # Credentials go in the form body, not the URL, so they never show
+            # up in logs or error messages.
+            token = auth.request("POST", "/oauth2/token", data={
                 "client_id": client_id, "client_secret": client_secret,
                 "grant_type": "client_credentials"}).json()["access_token"]
         finally:
