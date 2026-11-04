@@ -50,3 +50,22 @@ def test_find_game_by_name_exact_then_substring(conn):
     assert db.find_game_by_name(conn, "hollow knight")["id"] == 1
     assert db.find_game_by_name(conn, "silksong")["id"] == 2
     assert db.find_game_by_name(conn, "zelda") is None
+
+
+def test_history_set_overwrite_and_remove(conn):
+    db.upsert_games(conn, [make_game(), make_game(id=2, slug="fifa", name="FIFA 23")])
+    db.set_verdict(conn, 1, "liked", "loved the bosses")
+    db.set_verdict(conn, 2, "liked")
+    db.set_verdict(conn, 2, "disliked")                 # changed my mind: overwrite
+    h = db.get_history(conn)
+    assert [(r["name"], r["verdict"]) for r in h] == [("Hollow Knight", "liked"), ("FIFA 23", "disliked")]
+    assert h[0]["note"] == "loved the bosses"
+    assert db.remove_verdict(conn, 2) is True
+    assert db.remove_verdict(conn, 2) is False
+    assert len(db.get_history(conn)) == 1
+
+
+def test_history_rejects_bad_verdict(conn):
+    db.upsert_games(conn, [make_game()])
+    with pytest.raises(ValueError):
+        db.set_verdict(conn, 1, "meh")

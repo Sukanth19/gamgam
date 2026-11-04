@@ -27,6 +27,14 @@ CREATE TABLE IF NOT EXISTS games (
     updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_games_name ON games(name COLLATE NOCASE);
+
+-- What the user has played. One row per game: re-rating overwrites.
+CREATE TABLE IF NOT EXISTS play_history (
+    game_id    INTEGER PRIMARY KEY REFERENCES games(id),
+    verdict    TEXT NOT NULL CHECK (verdict IN ('liked', 'disliked')),
+    note       TEXT,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 _JSON_FIELDS = ("genres", "tags", "platforms")
@@ -103,3 +111,29 @@ def find_game_by_name(conn: sqlite3.Connection, name: str) -> dict | None:
 
 def count_games(conn: sqlite3.Connection) -> int:
     return conn.execute("SELECT COUNT(*) FROM games").fetchone()[0]
+
+
+# --- play history -------------------------------------------------------------
+
+def set_verdict(conn: sqlite3.Connection, game_id: int, verdict: str, note: str | None = None):
+    if verdict not in ("liked", "disliked"):
+        raise ValueError(f"verdict must be 'liked' or 'disliked', got {verdict!r}")
+    with conn:
+        conn.execute(
+            "INSERT INTO play_history (game_id, verdict, note) VALUES (?, ?, ?) "
+            "ON CONFLICT(game_id) DO UPDATE SET verdict = excluded.verdict, "
+            "note = COALESCE(excluded.note, play_history.note), updated_at = datetime('now')",
+            (game_id, verdict, note))
+
+
+def remove_verdict(conn: sqlite3.Connection, game_id: int) -> bool:
+    with conn:
+        return conn.execute("DELETE FROM play_history WHERE game_id = ?", (game_id,)).rowcount > 0
+
+
+def get_history(conn: sqlite3.Connection) -> list[dict]:
+    """[{game_id, name, verdict, note, updated_at}], liked first."""
+    rows = conn.execute(
+        "SELECT h.game_id, g.name, h.verdict, h.note, h.updated_at FROM play_history h "
+        "JOIN games g ON g.id = h.game_id ORDER BY h.verdict DESC, h.updated_at")
+    return [dict(r) for r in rows]
