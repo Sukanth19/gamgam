@@ -1,42 +1,51 @@
-"""Fetch popular games from RAWG into SQLite.
+"""Fetch popular games into SQLite from the source set by GAME_SOURCE (.env).
 
     python -m app.fetch                 # ~2000 games
     python -m app.fetch --limit 50      # quick test
 
-Safe to re-run: games are upserted, and descriptions are only fetched for
-games that don't have one yet.
+Safe to re-run: games are upserted by id. For sources whose list endpoint
+lacks descriptions (RAWG), descriptions are fetched only where missing.
 """
 
 import argparse
 import logging
 
 from app import config, db
-from app.rawg_client import RawgClient
+
+
+def make_client():
+    if config.GAME_SOURCE == "igdb":
+        from app.igdb_client import IgdbClient
+        return IgdbClient()
+    from app.rawg_client import RawgClient
+    return RawgClient()
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--limit", type=int, default=config.RAWG_DEFAULT_LIMIT)
+    ap.add_argument("--limit", type=int, default=config.FETCH_DEFAULT_LIMIT)
     ap.add_argument("--skip-descriptions", action="store_true")
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)
 
+    print(f"source: {config.GAME_SOURCE}  ->  {config.DB_PATH.relative_to(config.ROOT)}")
     conn = db.connect()
-    client = RawgClient()
+    client = make_client()
     try:
-        # 1. List pages: 40 games per request.
-        batch = []
-        for i, game in enumerate(client.iter_popular_games(args.limit), 1):
+        # 1. List games in popularity order, saving every 100 as we go.
+        batch, n = [], 0
+        for n, game in enumerate(client.iter_popular_games(args.limit), 1):
             batch.append(game)
-            if len(batch) == config.RAWG_PAGE_SIZE:
+            if len(batch) == 100:
                 db.upsert_games(conn, batch)
                 batch = []
-                print(f"listed {i} games", flush=True)
+                print(f"listed {n} games", flush=True)
         db.upsert_games(conn, batch)
-        print(f"games in db: {db.count_games(conn)}")
+        print(f"listed {n} games; games in db: {db.count_games(conn)}")
 
         # 2. Descriptions: one detail request per game, only where missing.
-        if not args.skip_descriptions:
+        if client.needs_detail_fetch and not args.skip_descriptions:
             missing = db.ids_missing_description(conn)
             print(f"fetching descriptions for {len(missing)} games...")
             for i, gid in enumerate(missing, 1):

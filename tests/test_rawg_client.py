@@ -3,7 +3,7 @@
 import httpx
 import pytest
 
-from app import rawg_client
+from app import http_retry, rawg_client
 from app.rawg_client import RawgClient
 
 RAW = {"id": 1, "slug": "hk", "name": "Hollow Knight", "released": "2017-02-24",
@@ -16,7 +16,7 @@ RAW = {"id": 1, "slug": "hk", "name": "Hollow Knight", "released": "2017-02-24",
 
 @pytest.fixture(autouse=True)
 def no_sleep(monkeypatch):
-    monkeypatch.setattr(rawg_client.time, "sleep", lambda s: None)
+    monkeypatch.setattr(http_retry.time, "sleep", lambda s: None)
 
 
 def client_with(handler):

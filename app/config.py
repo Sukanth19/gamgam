@@ -11,6 +11,14 @@ load_dotenv(ROOT / ".env")
 # --- API keys (from .env) ---
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 RAWG_API_KEY = os.getenv("RAWG_API_KEY", "")
+TWITCH_CLIENT_ID = os.getenv("TWITCH_CLIENT_ID", "")
+TWITCH_CLIENT_SECRET = os.getenv("TWITCH_CLIENT_SECRET", "")
+
+# --- Game data source: "igdb" (default) or "rawg" ---
+# Each source has its own ids, so each gets its own db + vector collection.
+GAME_SOURCE = os.getenv("GAME_SOURCE", "igdb").strip().lower()
+if GAME_SOURCE not in ("igdb", "rawg"):
+    raise RuntimeError(f"GAME_SOURCE must be 'igdb' or 'rawg', got {GAME_SOURCE!r}")
 
 # --- Models ---
 EMBEDDING_MODEL = "gemini-embedding-001"
@@ -22,16 +30,24 @@ CHAT_MODEL = "gemini-2.5-flash"  # used from phase 2 onwards
 
 # --- Paths ---
 DATA_DIR = ROOT / "data"
-DB_PATH = DATA_DIR / "games.db"
+DB_PATH = DATA_DIR / f"games_{GAME_SOURCE}.db"
 CHROMA_DIR = DATA_DIR / "chroma"
-CHROMA_COLLECTION = "games"
+CHROMA_COLLECTION = f"games_{GAME_SOURCE}"
+
+FETCH_DEFAULT_LIMIT = 2000
 
 # --- RAWG ---
 RAWG_BASE_URL = "https://api.rawg.io/api"
 RAWG_PAGE_SIZE = 40          # RAWG max
-RAWG_DEFAULT_LIMIT = 2000
 RAWG_MIN_INTERVAL_S = 0.25   # min gap between requests (be polite)
 RAWG_MAX_RETRIES = 5
+
+# --- IGDB (via Twitch auth) ---
+TWITCH_TOKEN_URL = "https://id.twitch.tv/oauth2/token"
+IGDB_BASE_URL = "https://api.igdb.com/v4"
+IGDB_PAGE_SIZE = 500         # IGDB max
+IGDB_MIN_INTERVAL_S = 0.3    # IGDB allows 4 requests/second
+IGDB_MAX_RETRIES = 5
 
 # --- Gemini embedding rate limiting ---
 EMBED_BATCH_SIZE = 50        # texts per embed request
