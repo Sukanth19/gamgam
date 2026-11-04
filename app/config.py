@@ -53,6 +53,9 @@ IGDB_MAX_RETRIES = 5
 EMBED_BATCH_SIZE = 50        # texts per embed request
 EMBED_MIN_INTERVAL_S = 1.0   # min gap between embed requests
 EMBED_MAX_RETRIES = 8
+# If Gemini asks us to wait longer than this, it's the *daily* quota, not the
+# per-minute one: stop and let the user re-run later instead of sleeping for hours.
+EMBED_MAX_WAIT_S = 300
 
 # --- Text profile ---
 PROFILE_MAX_TAGS = 15

@@ -73,6 +73,14 @@ def normalize(vec: list[float]) -> list[float]:
     return [x / n for x in vec]
 
 
+class QuotaExhausted(RuntimeError):
+    """Raised when Gemini asks for a very long wait (daily quota used up)."""
+
+    def __init__(self, wait_s: float):
+        self.wait_s = wait_s
+        super().__init__(f"Gemini quota exhausted, server asked to wait {wait_s / 3600:.1f}h")
+
+
 def _retry_delay_from_error(err) -> float | None:
     """Gemini 429 responses often include RetryInfo, e.g. "retryDelay": "37s"."""
     m = re.search(r'"retryDelay":\s*"(\d+(?:\.\d+)?)s"', json.dumps(getattr(err, "details", None) or {}))
@@ -112,7 +120,10 @@ class Embedder:
                     raise                      # bad request / auth: don't retry
                 if attempt == self.max_retries:
                     raise
-                delay = _retry_delay_from_error(e) or min(90, 2 ** (attempt + 1))
+                server_delay = _retry_delay_from_error(e)
+                if server_delay and server_delay > config.EMBED_MAX_WAIT_S:
+                    raise QuotaExhausted(server_delay) from e
+                delay = server_delay or min(90, 2 ** (attempt + 1))
                 delay += random.uniform(0, 1)
                 log.warning("Gemini %s, retry %d/%d in %.0fs", e.code,
                             attempt + 1, self.max_retries, delay)

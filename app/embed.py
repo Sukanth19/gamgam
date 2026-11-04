@@ -8,9 +8,10 @@ current profile (so only new or changed games hit the Gemini API).
 
 import argparse
 import logging
+import sys
 
 from app import db
-from app.embeddings import Embedder, build_profile, profile_hash
+from app.embeddings import Embedder, QuotaExhausted, build_profile, profile_hash
 from app.vector_store import GameVectorStore
 
 
@@ -44,10 +45,15 @@ def main():
         return
 
     embedder = Embedder()
-    for start, vectors in embedder.embed([p for _, p, _ in todo]):
-        chunk = todo[start:start + len(vectors)]
-        store.upsert([g for g, _, _ in chunk], vectors, [h for _, _, h in chunk])
-        print(f"  embedded {start + len(vectors)}/{len(todo)}", flush=True)
+    try:
+        for start, vectors in embedder.embed([p for _, p, _ in todo]):
+            chunk = todo[start:start + len(vectors)]
+            store.upsert([g for g, _, _ in chunk], vectors, [h for _, _, h in chunk])
+            print(f"  embedded {start + len(vectors)}/{len(todo)}", flush=True)
+    except QuotaExhausted as e:
+        # Everything embedded so far is already saved; a re-run resumes from here.
+        sys.exit(f"\nstopped: {e}.\n{store.count()}/{len(games)} games are embedded and saved. "
+                 f"Re-run `python -m app.embed` in ~{e.wait_s / 3600:.0f}h to finish.")
     print(f"done. vectors in store: {store.count()}")
 
 

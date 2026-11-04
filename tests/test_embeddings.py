@@ -49,15 +49,18 @@ def test_normalize_gives_unit_vector():
 
 
 class FakeModels:
-    def __init__(self, fail_times=0):
-        self.calls, self.fail_times = [], fail_times
+    def __init__(self, fail_times=0, retry_delay=None):
+        self.calls, self.fail_times, self.retry_delay = [], fail_times, retry_delay
 
     def embed_content(self, model, contents, config):
         from google.genai import errors
         self.calls.append(len(contents))
         if len(self.calls) <= self.fail_times:
+            details = ([{"@type": "type.googleapis.com/google.rpc.RetryInfo",
+                         "retryDelay": f"{self.retry_delay}s"}] if self.retry_delay else [])
             raise errors.ClientError(429, {"error": {"code": 429, "message": "quota",
-                                                     "status": "RESOURCE_EXHAUSTED"}})
+                                                     "status": "RESOURCE_EXHAUSTED",
+                                                     "details": details}})
         class E:  # mimic SDK response shape
             def __init__(s, v): s.values = v
         class R:
@@ -67,6 +70,16 @@ class FakeModels:
 
 class FakeClient:
     def __init__(self, **kw): self.models = FakeModels(**kw)
+
+
+def test_embedder_gives_up_on_daily_quota_instead_of_sleeping(monkeypatch):
+    import pytest
+    slept = []
+    monkeypatch.setattr(embeddings.time, "sleep", slept.append)
+    e = embeddings.Embedder(FakeClient(fail_times=1, retry_delay=76979), min_interval=0)
+    with pytest.raises(embeddings.QuotaExhausted):
+        list(e.embed(["a"]))
+    assert slept == []                              # never slept 21 hours
 
 
 def test_embedder_batches_and_retries_429(monkeypatch):
