@@ -76,7 +76,7 @@ def test_embedder_gives_up_on_daily_quota_instead_of_sleeping(monkeypatch):
     import pytest
     slept = []
     monkeypatch.setattr(embeddings.time, "sleep", slept.append)
-    e = embeddings.Embedder(FakeClient(fail_times=1, retry_delay=76979), min_interval=0)
+    e = embeddings.GeminiEmbedder(FakeClient(fail_times=1, retry_delay=76979), min_interval=0)
     with pytest.raises(embeddings.QuotaExhausted):
         list(e.embed(["a"]))
     assert slept == []                              # never slept 21 hours
@@ -85,7 +85,7 @@ def test_embedder_gives_up_on_daily_quota_instead_of_sleeping(monkeypatch):
 def test_embedder_batches_and_retries_429(monkeypatch):
     monkeypatch.setattr(embeddings.time, "sleep", lambda s: None)
     client = FakeClient(fail_times=2)
-    e = embeddings.Embedder(client, batch_size=2, min_interval=0)
+    e = embeddings.GeminiEmbedder(client, batch_size=2, min_interval=0)
     out = list(e.embed(["a", "b", "c"]))
     assert [start for start, _ in out] == [0, 2]
     assert [len(v) for _, v in out] == [2, 1]

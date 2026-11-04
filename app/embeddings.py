@@ -87,7 +87,7 @@ def _retry_delay_from_error(err) -> float | None:
     return float(m.group(1)) if m else None
 
 
-class Embedder:
+class GeminiEmbedder:
     def __init__(self, client=None, *, batch_size: int = config.EMBED_BATCH_SIZE,
                  min_interval: float = config.EMBED_MIN_INTERVAL_S,
                  max_retries: int = config.EMBED_MAX_RETRIES):
@@ -135,3 +135,24 @@ class Embedder:
         incrementally - a crash mid-run loses at most one batch."""
         for start in range(0, len(texts), self.batch_size):
             yield start, self._embed_once(texts[start:start + self.batch_size])
+
+
+class LocalEmbedder:
+    """Open-source embedding model on CPU via fastembed (ONNX runtime, no
+    PyTorch). First run downloads the model once into data/models/."""
+
+    def __init__(self, model_name: str = config.LOCAL_EMBEDDING_MODEL,
+                 batch_size: int = config.LOCAL_EMBED_BATCH_SIZE):
+        from fastembed import TextEmbedding
+        self.model = TextEmbedding(model_name, cache_dir=str(config.MODELS_DIR))
+        self.batch_size = batch_size
+
+    def embed(self, texts: list[str]):
+        for start in range(0, len(texts), self.batch_size):
+            batch = texts[start:start + self.batch_size]
+            yield start, [normalize(v.tolist()) for v in self.model.embed(batch)]
+
+
+def make_embedder():
+    """Pick the embedder from EMBED_PROVIDER (.env)."""
+    return GeminiEmbedder() if config.EMBED_PROVIDER == "gemini" else LocalEmbedder()

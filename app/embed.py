@@ -10,8 +10,8 @@ import argparse
 import logging
 import sys
 
-from app import db
-from app.embeddings import Embedder, QuotaExhausted, build_profile, profile_hash
+from app import config, db
+from app.embeddings import QuotaExhausted, make_embedder, build_profile, profile_hash
 from app.vector_store import GameVectorStore
 
 
@@ -40,11 +40,12 @@ def main():
     todo = plan_work(games, store.existing_hashes())
     if args.limit:
         todo = todo[:args.limit]
+    print(f"embedding with {config.EMBED_PROVIDER}: {config.EMBEDDING_MODEL}  ->  collection {config.CHROMA_COLLECTION}")
     print(f"{len(games)} games in db, {len(games) - len(todo)} already embedded, {len(todo)} to embed")
     if not todo:
         return
 
-    embedder = Embedder()
+    embedder = make_embedder()
     try:
         for start, vectors in embedder.embed([p for _, p, _ in todo]):
             chunk = todo[start:start + len(vectors)]

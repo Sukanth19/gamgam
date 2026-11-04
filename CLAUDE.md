@@ -4,7 +4,7 @@ A learning project: a Python RAG app built on the Gemini API (free tier).
 The user is learning, so briefly explain the key decisions when changing code.
 
 ## Roadmap
-1. [built — code + tests done, awaiting first live run] Fetch game metadata (IGDB by default; RAWG optional) into SQLite, embed it, "similar games" search
+1. [done] Fetch game metadata (IGDB by default; RAWG optional) into SQLite, embed it, "similar games" search
 2. Play history (liked/disliked) -> taste-vector recommendations, with Gemini explaining each pick
 3. Scrape Fandom wikis (MediaWiki API) for 3-5 games, chunk by section, embed
 4. Lore Q&A: hybrid BM25 + vector search, answers with citations, says "I don't know" when unsure
@@ -14,7 +14,7 @@ The user is learning, so briefly explain the key decisions when changing code.
 
 ## Stack
 - Python 3.12 (managed with uv; `uv sync`, `uv run ...`), google-genai SDK, ChromaDB (local persistent), SQLite, httpx; Streamlit later
-- Embeddings: `gemini-embedding-001`. Model names live in `app/config.py`, never hardcoded elsewhere.
+- Embeddings: `EMBED_PROVIDER` (.env) = `local` (default; `BAAI/bge-base-en-v1.5` on CPU via fastembed, no limits, ~7 min for 2000 games) or `gemini` (`gemini-embedding-001`; free tier ran out at ~1000 texts/day). Each provider has its own Chroma collection `games_<source>_<provider>`. Model names live in `app/config.py`, never hardcoded elsewhere.
 - API keys in `.env` (git-ignored), loaded with python-dotenv; `.env.example` documents them.
 
 ## Layout
@@ -32,6 +32,6 @@ The user is learning, so briefly explain the key decisions when changing code.
 
 ## Conventions
 - `GAME_SOURCE` (.env) selects igdb|rawg; ids differ per source, so each source has its own db file and chroma collection. Clients all emit the same flat game dict.
-- Re-runs must be idempotent: upsert by RAWG id, skip already-embedded games (profile hash cache).
-- Respect free-tier rate limits for both RAWG and Gemini.
+- Re-runs must be idempotent: upsert by source id, skip already-embedded games (profile hash cache).
+- Respect free-tier rate limits (IGDB 4 req/s, RAWG, Gemini). Long Gemini 429 waits (>5 min) mean daily quota: stop, don't sleep.
 - Commit messages: all lowercase, no AI attribution/co-author lines.
