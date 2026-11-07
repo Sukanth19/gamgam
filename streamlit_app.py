@@ -53,6 +53,23 @@ with st.sidebar:
                 st.rerun()
             else:
                 st.warning(f"No game matching “{name}”.")
+
+        st.header("Spoiler protection")
+        st.caption("Lore answers only use what you've seen so far.")
+        from app.progress import milestones_for
+        from app.router import LORE_GAMES
+        for name in LORE_GAMES:
+            game = db.find_game_by_name(conn, name)
+            if game is None:
+                continue
+            labels = ["Off (show everything)"] + [m.label for m in milestones_for(name)]
+            current = db.get_progress(conn, game["id"])
+            choice = st.selectbox(name, labels, index=0 if current is None else current + 1,
+                                  key=f"progress-{game['id']}-{current}")
+            picked = None if choice == labels[0] else labels.index(choice) - 1
+            if picked != current:
+                db.set_progress(conn, game["id"], picked)
+                st.rerun()
     finally:
         conn.close()
     if state.last_game:

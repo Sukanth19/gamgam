@@ -5,7 +5,7 @@ Two layers:
    "similar to", "recommend", "I loved", "who is". Handles most messages.
 2. Gemini (only when the rules can't decide): returns {intent, game} as JSON.
 
-Intents: recommend | similar | lore | like | dislike | history | help
+Intents: recommend | similar | lore | like | dislike | history | progress | help
 """
 
 import re
@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from app import llm
 from app.wikis import WIKIS
 
-Intent = Literal["recommend", "similar", "lore", "like", "dislike", "history", "help"]
+Intent = Literal["recommend", "similar", "lore", "like", "dislike", "history", "progress", "help"]
 
 # Short names people actually type for the lore games.
 LORE_ALIASES = {
@@ -120,11 +120,20 @@ _RECOMMEND = re.compile(r"\b(recommend|suggest|what should i play|what (game )?(
                         r"something (new )?to play|play next|any (good )?games?)\b", re.I)
 _SIMILAR = re.compile(r"\b(similar to|games? like|more like|something like|alternatives? to|"
                       r"like .+ but)\b", re.I)
-_LIKE = re.compile(r"\b(i (really |absolutely )?(liked|loved|enjoyed|adored)|i (really )?(like|love) )", re.I)
+_LIKE = re.compile(r"\b(i (really |absolutely )?(liked|loved|enjoyed|adored)|i (really )?(like|love) |"
+                   r"(liked|loved|enjoyed|adored) it)", re.I)
+# "how do I beat X" is a question, not a progress report
+_QUESTION_START = re.compile(r"^\s*(how|who|what|why|where|when|which|can|could|should|do|does|did|"
+                             r"is|are|was|were|will|would)\b", re.I)
 _DISLIKE = re.compile(r"\b(i (really )?(disliked|hated|didn'?t (like|enjoy)|don'?t like|couldn'?t stand)|"
                       r"not a fan of)\b", re.I)
 _HISTORY = re.compile(r"\b(my (history|list|likes|games)|what (have|did) i (like|liked|play|played)|"
                       r"show (me )?my)\b", re.I)
+_PROGRESS = re.compile(r"\b(i'?m (now )?(at|in|on|up to|past)|i am (now )?(at|in|on|up to|past)|"
+                       r"i (just )?(reached|got to|beat|finished|completed|started)|"
+                       r"i'?ve (just )?(reached|beaten|finished|completed|started)|"
+                       r"(no|avoid|hide) spoilers|spoilers? (on|off)|spoiler[- ]free|"
+                       r"spoiler protection)\b", re.I)
 _LORE = re.compile(r"\b(who|what|why|where|when|how|which|lore|story|explain|tell me about|"
                    r"happened|ending|origin)\b", re.I)
 
@@ -140,6 +149,12 @@ def route_with_rules(text: str, games: list[str], last_game: str | None,
     has_lore_game = any(g in LORE_GAMES for g in games)
     if _HISTORY.search(text):
         return Route("history", games)
+    if _PROGRESS.search(text) and not _QUESTION_START.search(text):
+        lore = [g for g in games if g in LORE_GAMES]
+        if lore:
+            return Route("progress", lore)
+        if not games and last_game in LORE_GAMES:
+            return Route("progress", [last_game])
     if _DISLIKE.search(text) and games:
         return Route("dislike", games)
     if _SIMILAR.search(text) and games:

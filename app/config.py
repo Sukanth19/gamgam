@@ -114,3 +114,10 @@ ANSWER_CONTEXT_CHUNKS = 8    # chunks sent to the LLM as numbered sources
 # questions (16 test questions: on-topic best 0.57-0.79, off-topic 0.38-0.54 -
 # a thin margin, so the LLM's own "not answerable" check is the second gate).
 MIN_ANSWER_SIMILARITY = 0.55
+
+# --- Spoiler tagging (phase 6) ---
+SPOILER_PAGES_PER_CALL = 10   # wiki pages (all their sections) per Gemini tagging call
+SPOILER_MAX_SECTIONS = 25     # per page in a call; extras are tagged on the next run
+SPOILER_CALL_INTERVAL_S = 4.0 # stay under free-tier requests-per-minute limits
+SPOILER_RETRIEVE_POOL = 40    # fused candidates fetched before hiding spoilers (more than usual,
+                              # since some will be filtered out)

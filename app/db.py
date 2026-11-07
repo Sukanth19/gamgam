@@ -63,6 +63,22 @@ CREATE TABLE IF NOT EXISTS lore_chunks (
 );
 CREATE INDEX IF NOT EXISTS idx_chunks_game ON lore_chunks(game_id);
 
+-- Spoiler tags (phase 6): earliest milestone at which a wiki SECTION's content
+-- is known to the player. Keyed by section, not chunk, so re-chunking keeps them.
+CREATE TABLE IF NOT EXISTS section_milestones (
+    page_key  TEXT NOT NULL,
+    section   TEXT NOT NULL,
+    milestone INTEGER NOT NULL,
+    revid     INTEGER NOT NULL,           -- page revision that was tagged; re-tag if it changes
+    PRIMARY KEY (page_key, section)
+);
+-- How far the user has played each game. No row = no spoiler filtering.
+CREATE TABLE IF NOT EXISTS game_progress (
+    game_id    INTEGER PRIMARY KEY REFERENCES games(id),
+    milestone  INTEGER NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Full-text index over chunks for BM25 keyword search (phase 4). FTS5 ships
 -- with SQLite. "porter" stems words (fighting -> fight); "remove_diacritics"
 -- lets "Pokemon" match "Pokémon".
@@ -299,8 +315,10 @@ def get_chunks_by_ids(conn: sqlite3.Connection, chunk_ids: list[str]) -> dict[st
     marks = ",".join("?" * len(chunk_ids))
     rows = conn.execute(
         "SELECT c.chunk_id, c.game_id, g.name AS game, p.title, p.url, c.section, c.kind, "
-        f"c.text, c.spoiler, p.page_spoiler FROM lore_chunks c JOIN wiki_pages p ON p.page_key = c.page_key "
-        f"JOIN games g ON g.id = c.game_id WHERE c.chunk_id IN ({marks})", chunk_ids)
+        "c.text, c.spoiler, p.page_spoiler, sm.milestone FROM lore_chunks c "
+        "JOIN wiki_pages p ON p.page_key = c.page_key JOIN games g ON g.id = c.game_id "
+        "LEFT JOIN section_milestones sm ON sm.page_key = c.page_key AND sm.section = c.section "
+        f"WHERE c.chunk_id IN ({marks})", chunk_ids)
     return {r["chunk_id"]: dict(r) for r in rows}
 
 
@@ -310,3 +328,60 @@ def wiki_titles_by_game(conn: sqlite3.Connection) -> dict[str, list[str]]:
             "SELECT g.name, p.title FROM wiki_pages p JOIN games g ON g.id = p.game_id"):
         out.setdefault(name, []).append(title)
     return out
+
+
+# --- spoilers / progress ------------------------------------------------------
+
+def sections_needing_tags(conn: sqlite3.Connection, game_id: int, sample_words: int = 35) -> list[dict]:
+    """Pages with at least one section that has no tag for the page's current
+    revision: [{page_key, title, revid, sections: [{section, sample}]}]."""
+    rows = conn.execute(
+        "SELECT p.page_key, p.title, p.revid, c.section, MIN(c.position) AS pos FROM lore_chunks c "
+        "JOIN wiki_pages p ON p.page_key = c.page_key "
+        "LEFT JOIN section_milestones sm ON sm.page_key = c.page_key AND sm.section = c.section "
+        "AND sm.revid = p.revid WHERE c.game_id = ? AND sm.milestone IS NULL "
+        "GROUP BY p.page_key, c.section ORDER BY p.page_key, pos", (game_id,)).fetchall()
+    pages: dict[str, dict] = {}
+    for r in rows:
+        text = conn.execute("SELECT text FROM lore_chunks WHERE page_key = ? AND section = ? "
+                            "ORDER BY position LIMIT 1", (r["page_key"], r["section"])).fetchone()[0]
+        page = pages.setdefault(r["page_key"], {"page_key": r["page_key"], "title": r["title"],
+                                                "revid": r["revid"], "sections": []})
+        page["sections"].append({"section": r["section"] or "(intro)", "raw_section": r["section"],
+                                 "sample": " ".join(text.split()[:sample_words])})
+    return list(pages.values())
+
+
+def save_section_milestones(conn: sqlite3.Connection, rows: list[tuple[str, str, int, int]]):
+    """rows: (page_key, section, milestone, revid)"""
+    with conn:
+        conn.executemany(
+            "INSERT INTO section_milestones (page_key, section, milestone, revid) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(page_key, section) DO UPDATE SET milestone = excluded.milestone, "
+            "revid = excluded.revid", rows)
+
+
+def milestone_coverage(conn: sqlite3.Connection) -> list[tuple]:
+    """(game, tagged sections, total sections) per game."""
+    return conn.execute(
+        "SELECT g.name, COUNT(sm.milestone), COUNT(*) FROM "
+        "(SELECT DISTINCT c.game_id, c.page_key, c.section FROM lore_chunks c) s "
+        "JOIN games g ON g.id = s.game_id JOIN wiki_pages p ON p.page_key = s.page_key "
+        "LEFT JOIN section_milestones sm ON sm.page_key = s.page_key AND sm.section = s.section "
+        "AND sm.revid = p.revid GROUP BY g.name ORDER BY g.name").fetchall()
+
+
+def get_progress(conn: sqlite3.Connection, game_id: int) -> int | None:
+    row = conn.execute("SELECT milestone FROM game_progress WHERE game_id = ?", (game_id,)).fetchone()
+    return row[0] if row else None
+
+
+def set_progress(conn: sqlite3.Connection, game_id: int, milestone: int | None):
+    """milestone=None turns spoiler protection off for that game."""
+    with conn:
+        if milestone is None:
+            conn.execute("DELETE FROM game_progress WHERE game_id = ?", (game_id,))
+        else:
+            conn.execute("INSERT INTO game_progress (game_id, milestone) VALUES (?, ?) "
+                         "ON CONFLICT(game_id) DO UPDATE SET milestone = excluded.milestone, "
+                         "updated_at = datetime('now')", (game_id, milestone))

@@ -40,6 +40,7 @@ class Result:
     sources: list[dict] = field(default_factory=list)    # the cited chunks, numbered
     reason: str = ""                                     # why we said "I don't know"
     hits: list[dict] = field(default_factory=list)       # everything retrieved (debug)
+    revealed_at: int | None = None                       # milestone where the hidden answer appears
 
 
 def build_prompt(question: str, game: str, hits: list[dict]) -> str:
@@ -82,11 +83,43 @@ def check_citations(answer: str, cited: list[int], n_sources: int) -> tuple[str,
     return re.sub(r"\s+([.,;])", r"\1", text).strip(), sorted(used)
 
 
-def ask(conn, store, embedder, client, question: str, game: dict) -> Result:
+def is_visible(hit: dict, max_milestone: int | None) -> bool:
+    """With protection on, only sections tagged at/before the user's progress
+    are visible. Untagged sections are hidden: never guess in the leaky direction."""
+    if max_milestone is None:
+        return True
+    return hit.get("milestone") is not None and hit["milestone"] <= max_milestone
+
+
+def revealed_later(game: dict, hidden: list[dict], max_milestone: int, hits: list[dict]) -> Result:
+    from app.progress import milestones_for
+    ms = milestones_for(game["name"])
+    best = max(hidden, key=lambda h: h["similarity"] or 0)
+    at = best.get("milestone")
+    where = f"around **{ms[at].label}**" if at is not None and at < len(ms) else "later on"
+    text = (f"That's revealed later in the game — {where}. You're at **{ms[max_milestone].label}**, "
+            "so I'm keeping it hidden. Update your progress or turn spoiler protection off to see it.")
+    return Result(text, False, reason="revealed later", hits=hits, revealed_at=at)
+
+
+def ask(conn, store, embedder, client, question: str, game: dict,
+        max_milestone: int | None = None) -> Result:
+    """max_milestone: the user's progress (None = no spoiler protection)."""
     query_vec = next(embedder.embed([question]))[1][0]
-    hits = hybrid_search(conn, store, query_vec, question, game["id"])
+    if max_milestone is None:
+        hits, hidden = hybrid_search(conn, store, query_vec, question, game["id"]), []
+    else:
+        # fetch a bigger pool, since some of it will be hidden
+        pool = hybrid_search(conn, store, query_vec, question, game["id"],
+                             k=config.SPOILER_RETRIEVE_POOL)
+        hits = [h for h in pool if is_visible(h, max_milestone)][:config.ANSWER_CONTEXT_CHUNKS]
+        hidden = [h for h in pool if not is_visible(h, max_milestone)]
     best = best_similarity(hits)
+    # Is there a strong answer we're hiding? Then "I don't know" would be a lie.
+    later = bool(hidden) and best_similarity(hidden) >= max(config.MIN_ANSWER_SIMILARITY, best)
     if not hits or best < config.MIN_ANSWER_SIMILARITY:
+        if later:
+            return revealed_later(game, hidden, max_milestone, hits)
         return Result(IDK, False, reason=f"best match {best:.2f} < {config.MIN_ANSWER_SIMILARITY}",
                       hits=hits)
     if client is None:
@@ -99,6 +132,8 @@ def ask(conn, store, embedder, client, question: str, game: dict) -> Result:
         return Result("(Gemini is unavailable right now) - here are the most relevant sources.",
                       False, sources=hits[:3], reason="llm failed", hits=hits)
     if not out.answerable:
+        if later:
+            return revealed_later(game, hidden, max_milestone, hits)
         return Result(IDK, False, reason="model: sources don't contain the answer", hits=hits)
 
     text, used = check_citations(out.answer, out.citations, len(hits))
@@ -130,7 +165,7 @@ def main():
         from app.embeddings import make_embedder
         from app.vector_store import LoreVectorStore
         res = ask(conn, LoreVectorStore(), make_embedder("query"), llm.make_client(),
-                  args.question, game)
+                  args.question, game, max_milestone=db.get_progress(conn, game["id"]))
     finally:
         conn.close()
 
@@ -138,8 +173,10 @@ def main():
         print(f"retrieved ({res.reason or 'answered'}):")
         for h in res.hits:
             sim = f"{h['similarity']:.3f}" if h["similarity"] is not None else "  -  "
+            ms = h.get("milestone")
             print(f"  rrf {h['rrf']:.4f}  sim {sim}  vec#{h['vec_rank'] or '-':<3} "
-                  f"bm25#{h['bm25_rank'] or '-':<3} {h['title']} > {h['section']}")
+                  f"bm25#{h['bm25_rank'] or '-':<3} m{ms if ms is not None else '?'}  "
+                  f"{h['title']} > {h['section']}")
         print()
     print(res.answer)
     if res.sources:

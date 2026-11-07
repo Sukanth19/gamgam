@@ -4,6 +4,7 @@ No UI code here - the Streamlit app only renders Replies. That keeps this
 logic testable without a browser, and lets a CLI/other UI reuse it later.
 """
 
+import re
 from dataclasses import dataclass, field
 
 from app import db, llm
@@ -13,6 +14,7 @@ HELP = """I can help with:
 - **Recommendations**: "what should I play next?" (based on games you've liked)
 - **Similar games**: "games like Hollow Knight"
 - **Your taste**: "I loved Celeste", "I hated FIFA 23", "show my list"
+- **Spoiler protection**: "I'm at City of Tears in Hollow Knight", "spoilers off for Portal 2"
 - **Lore**: "who is the Pale King?", "why did the Nomai come here?" — """ \
     + ", ".join(LORE_GAMES)
 
@@ -59,7 +61,7 @@ class Assistant:
                       keyword_vote=lambda q: guess_game_by_keywords(conn, q))
             handler = {"recommend": self._recommend, "similar": self._similar,
                        "lore": self._lore, "like": self._verdict, "dislike": self._verdict,
-                       "history": self._history}.get(r.intent, self._help)
+                       "history": self._history, "progress": self._progress}.get(r.intent, self._help)
             reply = handler(conn, text, r)
             reply.intent, reply.via = r.intent, r.via
             return reply
@@ -135,6 +137,23 @@ class Assistant:
                   for i, h in enumerate(hits, 1)]
         return Reply("\n".join(lines), game=game["name"])
 
+    def _progress(self, conn, text, r: Route) -> Reply:
+        from app.progress import milestones_for, parse_progress
+        name = r.games[0]
+        game = db.find_game_by_name(conn, name)
+        ms = milestones_for(name)
+        if re.search(r"spoilers? (on|ok|fine)|spoilers? off\b.*protection|protection off|"
+                     r"show (me )?everything|don'?t care about spoilers", text, re.I):
+            db.set_progress(conn, game["id"], None)
+            return Reply(f"Spoiler protection is **off** for {name}: I'll use all the lore.", game=name)
+        idx = parse_progress(name, text)
+        if idx is None:
+            options = "\n".join(f"{i + 1}. {m.label}" for i, m in enumerate(ms))
+            return Reply(f"How far are you in **{name}**? Tell me one of these:\n\n{options}", game=name)
+        db.set_progress(conn, game["id"], idx)
+        return Reply(f"Got it — spoiler protection **on** for {name}. I'll only use lore up to "
+                     f"**{ms[idx].label}**.", game=name)
+
     def _lore(self, conn, text, r: Route) -> Reply:
         from app.ask import ask
         lore_game = next((g for g in r.games if g in LORE_GAMES), None)
@@ -143,7 +162,8 @@ class Assistant:
             return Reply(f"I don't have lore{asked} yet. I know: {', '.join(LORE_GAMES)}.",
                          game=r.game)
         game = db.find_game_by_name(conn, lore_game)
-        res = ask(conn, self.lore, self.query_embedder, self.client, text, game)
+        progress = db.get_progress(conn, game["id"])
+        res = ask(conn, self.lore, self.query_embedder, self.client, text, game, max_milestone=progress)
         sources = [{"title": s["title"], "section": s["section"], "url": s["url"],
                     "spoiler": bool(s["spoiler"] or s["page_spoiler"])} for s in res.sources]
         return Reply(f"*({lore_game})*\n\n{res.answer}", game=lore_game, sources=sources)

@@ -30,6 +30,10 @@ def m():
     ("how do I beat a leshen in witcher 3", "lore", "The Witcher 3: Wild Hunt"),
     ("tell me about hk's ending", "lore", "Hollow Knight"),
     ("what's the lore of Stardew Valley?", "lore", "Stardew Valley"),
+    ("I'm at City of Tears in Hollow Knight", "progress", "Hollow Knight"),
+    ("I just finished Portal 2", "progress", "Portal 2"),
+    ("no spoilers past the quantum moon in outer wilds please", "progress", "Outer Wilds"),
+    ("I just finished Celeste and loved it", "like", "Celeste"),       # no lore game: not progress
 ])
 def test_rules(m, text, intent, game):
     r = route(text, m)
