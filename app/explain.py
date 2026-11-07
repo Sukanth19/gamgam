@@ -11,11 +11,10 @@ Key decisions:
 """
 
 import logging
-import time
 
 from pydantic import BaseModel
 
-from app import config, db
+from app import db, llm
 from app.embeddings import clean_description, select_tags
 
 log = logging.getLogger(__name__)
@@ -51,47 +50,21 @@ def build_prompt(picks: list[dict], liked: list[dict], disliked: list[dict]) -> 
     return "\n".join(lines)
 
 
-def _generate(client, prompt: str) -> list[Explanation] | None:
-    from google.genai import errors, types
-    cfg = types.GenerateContentConfig(response_mime_type="application/json",
-                                      response_schema=list[Explanation], temperature=0.4)
-    for model in config.CHAT_MODELS:
-        for attempt in range(config.CHAT_RETRIES_PER_MODEL):
-            try:
-                resp = client.models.generate_content(model=model, contents=prompt, config=cfg)
-                log.info("explanations from %s", model)
-                return resp.parsed
-            except errors.APIError as e:
-                if e.code not in (429, 500, 503):
-                    log.warning("%s: %s", model, e)
-                    break                           # this model won't work; try the next
-                log.warning("%s busy (%s), attempt %d/%d", model, e.code,
-                            attempt + 1, config.CHAT_RETRIES_PER_MODEL)
-                time.sleep(2 * (attempt + 1))
-    return None
-
-
 def explain_picks(conn, picks: list[dict], history: list[dict], client=None) -> dict[int, str]:
     """Returns {game_id: explanation}. Empty dict if Gemini is unavailable."""
     if not picks:
         return {}
+    client = client or llm.make_client()
     if client is None:
-        if not config.GEMINI_API_KEY:
-            log.warning("GEMINI_API_KEY not set: skipping explanations")
-            return {}
-        from google import genai
-        client = genai.Client(api_key=config.GEMINI_API_KEY)
+        return {}
 
     games = {h["game_id"]: db.get_game(conn, h["game_id"]) for h in history}
     liked = [games[h["game_id"]] for h in history if h["verdict"] == "liked"]
     disliked = [games[h["game_id"]] for h in history if h["verdict"] == "disliked"]
     enriched = [{**p, "game": db.get_game(conn, p["id"])} for p in picks]
 
-    try:
-        result = _generate(client, build_prompt(enriched, liked, disliked))
-    except Exception as e:                        # network etc.: never fatal
-        log.warning("explanations failed: %s", e)
-        result = None
+    result = llm.generate_json(client, build_prompt(enriched, liked, disliked),
+                               list[Explanation], what="explanations")
     if result is None:
         print("(Gemini unavailable right now: showing picks without explanations)\n")
         return {}

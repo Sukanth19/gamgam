@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from app import db, explain
+from app import db, explain, llm
 from app.embeddings import normalize
 from app.recommend import mmr, recommend, relevance_scores, taste_vector
 from app.vector_store import GameVectorStore
@@ -128,10 +128,10 @@ def test_explain_grounds_prompt_and_drops_unknown_ids(env):
 
 
 def test_explain_falls_back_through_models_then_degrades(env, monkeypatch):
-    monkeypatch.setattr(explain.time, "sleep", lambda s: None)
+    monkeypatch.setattr(llm.time, "sleep", lambda s: None)
     conn, store = env
     picks, history = recommend(conn, store, k=2)
     client = FakeClient(fail_with=503)
     assert explain.explain_picks(conn, picks, history, client=client) == {}
     tried = client.models.models_tried
-    assert len(set(tried)) == len(explain.config.CHAT_MODELS)     # every model tried
+    assert len(set(tried)) == len(llm.config.CHAT_MODELS)         # every model tried
