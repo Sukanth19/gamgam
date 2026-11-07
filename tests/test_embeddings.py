@@ -90,3 +90,27 @@ def test_embedder_batches_and_retries_429(monkeypatch):
     assert [start for start, _ in out] == [0, 2]
     assert [len(v) for _, v in out] == [2, 1]
     assert client.models.calls == [2, 2, 2, 1]   # two 429s, then success, then last batch
+
+
+def test_select_tags_drops_junk_camera_and_duplicates():
+    tags = ["Fantasy", "Bird view / Isometric", "the game awards 2016", "pax west 2016",
+            "xbox controller support for pc", "available on - luna gog", "farming", "Farming"]
+    assert embeddings.select_tags(tags) == ["Fantasy", "farming"]
+
+
+def test_select_tags_ranks_shared_tags_first_and_buries_one_offs_and_generic():
+    counts = {"action": 90, "farming": 20, "fishing": 5, "duck": 1}
+    tags = ["duck", "action", "fishing", "farming"]
+    assert embeddings.select_tags(tags, counts, n_games=100) == ["farming", "fishing", "duck", "action"]
+    assert embeddings.select_tags(tags, counts, n_games=100, max_tags=2) == ["farming", "fishing"]
+
+
+def test_profile_dedupes_repeated_summary_and_storyline():
+    text = "You inherit a farm in the valley.\n\nYou inherit a farm in the valley. Joja is evil."
+    p = build_profile(game(description=text))
+    assert p.count("You inherit a farm") == 1
+
+
+def test_tag_counts_counts_each_game_once():
+    games = [{"tags": ["Farming", "farming"]}, {"tags": ["farming", "fish"]}]
+    assert embeddings.tag_counts(games) == {"farming": 2, "fish": 1}

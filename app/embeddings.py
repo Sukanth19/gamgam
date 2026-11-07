@@ -15,16 +15,25 @@ log = logging.getLogger(__name__)
 
 TASK_TYPE = "SEMANTIC_SIMILARITY"   # comparing game profile <-> game profile
 
-# Store-feature tags present on huge numbers of games. They say nothing about
-# what the game *is*, and would make unrelated games look similar.
-NOISE_TAGS = {
-    "singleplayer", "multiplayer", "steam achievements", "full controller support",
-    "steam cloud", "steam trading cards", "steam leaderboards", "steam workshop",
-    "partial controller support", "controller support", "achievements", "cloud saves",
-    "stats", "in-app purchases", "includes level editor", "steam-trading-cards",
-    "remote play together", "remote play on tv", "steamvr collectibles", "valve anti-cheat enabled",
-    "captions available", "commentary available", "great soundtrack", "atmospheric",
-}
+# Tags about the store/platform/marketing, not about what the game *is*
+# ("steam achievements", "the game awards 2016", "pax west 2016", ...). Left
+# in, they make unrelated games look similar. Patterns, not an exact list,
+# because IGDB keywords are user-submitted and come in endless variants.
+NOISE_TAG_RE = re.compile(
+    r"steam|achievement|trophies|controller|cloud save|trading card|leaderboard|"
+    r"game awards|nominee|award|\bpax\b|\be3\b|gamescom|available on|"
+    r"digital distribution|downloadable content|\bdlc\b|bink video|greatest hits|"
+    r"soundtrack|crowdfunding|kickstarter|greenlight|early access|"
+    r"in-app purchase|microtransaction|remote play|anti-cheat|captions|commentary|"
+    r"^sequel$|^singleplayer$|^multiplayer$|^stats$|^online$",
+    re.IGNORECASE)
+
+# IGDB "player perspectives" describe the camera, not the game. "Bird view /
+# Isometric" alone was linking Stardew Valley to Pillars of Eternity.
+CAMERA_TAGS = {"first person", "third person", "bird view / isometric", "side view"}
+
+# Tags on more than this share of games are too generic to help ("action").
+MAX_TAG_SHARE = 0.30
 
 _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"\s+")
@@ -46,16 +55,65 @@ def clean_description(text: str | None, max_chars: int = config.PROFILE_MAX_DESC
     return text
 
 
-def build_profile(game: dict) -> str:
-    """One text blob per game; this is what actually gets embedded."""
+def tag_counts(games: list[dict]) -> dict[str, int]:
+    """How many games carry each tag (lowercased). Used to rank tags."""
+    counts: dict[str, int] = {}
+    for g in games:
+        for t in {t.lower() for t in g.get("tags") or []}:
+            counts[t] = counts.get(t, 0) + 1
+    return counts
+
+
+def select_tags(tags: list[str], counts: dict[str, int] | None = None,
+                n_games: int = 0, max_tags: int = config.PROFILE_MAX_TAGS) -> list[str]:
+    """Drop junk, then keep the most *useful* tags.
+
+    Without corpus stats we just keep the original order. With them, a tag is
+    useful when several games share it (so it's a real, agreed-on concept, not
+    a one-off) but not so many that it's meaningless - so we rank tags
+    shared by >=2 games and <=30% of games by how many games share them.
+    """
+    seen, clean = set(), []
+    for t in tags:
+        k = t.lower().strip()
+        if k and k not in seen and k not in CAMERA_TAGS and not NOISE_TAG_RE.search(k):
+            seen.add(k)
+            clean.append(t)
+    if counts and n_games:
+        limit = MAX_TAG_SHARE * n_games
+        def score(t):
+            c = counts.get(t.lower(), 0)
+            return c if 2 <= c <= limit else -1   # one-offs and near-universal tags last
+        clean.sort(key=score, reverse=True)       # stable: ties keep original order
+    return clean[:max_tags]
+
+
+def _dedupe_paragraphs(text: str) -> str:
+    """IGDB summary and storyline often repeat each other; keep the first copy."""
+    norm = lambda s: _WS_RE.sub(" ", s).strip().lower()
+    out: list[str] = []
+    for para in text.split("\n\n"):
+        n = norm(para)
+        if not n:
+            continue
+        if any(n[:80] in norm(p) for p in out):        # already covered by an earlier one
+            continue
+        # if this paragraph contains an earlier one, it replaces it
+        out = [p for p in out if norm(p)[:80] not in n]
+        out.append(para)
+    return "\n\n".join(out)
+
+
+def build_profile(game: dict, counts: dict[str, int] | None = None, n_games: int = 0) -> str:
+    """One text blob per game; this is what actually gets embedded.
+    Pass `counts`/`n_games` (from tag_counts) to rank tags by usefulness."""
     parts = [f"{game['name']}."]
     if game.get("genres"):
         parts.append("Genres: " + ", ".join(game["genres"]) + ".")
-    tags = [t for t in game.get("tags") or [] if t.lower() not in NOISE_TAGS]
-    tags = tags[:config.PROFILE_MAX_TAGS]
+    tags = select_tags(game.get("tags") or [], counts, n_games)
     if tags:
         parts.append("Tags: " + ", ".join(tags) + ".")
-    desc = clean_description(game.get("description"))
+    desc = clean_description(_dedupe_paragraphs(game.get("description") or ""))
     if desc:
         parts.append(desc)
     return "\n".join(parts)

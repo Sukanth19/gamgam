@@ -35,7 +35,16 @@ EMBEDDING_MODEL = GEMINI_EMBEDDING_MODEL if EMBED_PROVIDER == "gemini" else LOCA
 # truncated vectors still work well (Matryoshka). 768 is 4x smaller with
 # little quality loss, and matches bge-base's native size.
 EMBEDDING_DIM = 768
-CHAT_MODEL = "gemini-2.5-flash"  # used from phase 2 onwards
+# Chat models, tried in order: free-tier models often return 503 "high demand",
+# so we fall back to the next one instead of failing.
+CHAT_MODELS = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-2.5-flash", "gemini-flash-lite-latest"]
+CHAT_MODEL = CHAT_MODELS[0]
+CHAT_RETRIES_PER_MODEL = 2
+
+# --- Recommendations ---
+DISLIKE_WEIGHT = 0.5       # Rocchio beta: how hard dislikes push the taste vector away
+CANDIDATE_POOL = 60        # nearest neighbours fetched before filtering + MMR
+MMR_LAMBDA = 0.7           # 1.0 = pure relevance, lower = more variety
 
 # --- Paths ---
 DATA_DIR = ROOT / "data"
@@ -70,5 +79,9 @@ EMBED_MAX_RETRIES = 8
 EMBED_MAX_WAIT_S = 300
 
 # --- Text profile ---
-PROFILE_MAX_TAGS = 15
+PROFILE_MAX_TAGS = 15          # tested 30: no better
+# Rank tags by how many games share them? Tested by eye on 8 games: it pushed
+# generic mechanics (crafting, mining) ahead of IGDB's curated themes and put
+# DayZ/Rust next to Stardew Valley. Off until the phase-7 eval can measure it.
+PROFILE_RANK_TAGS = False
 PROFILE_MAX_DESC_CHARS = 1500

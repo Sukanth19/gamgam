@@ -11,15 +11,17 @@ import logging
 import sys
 
 from app import config, db
-from app.embeddings import QuotaExhausted, make_embedder, build_profile, profile_hash
+from app.embeddings import QuotaExhausted, build_profile, make_embedder, profile_hash, tag_counts
 from app.vector_store import GameVectorStore
 
 
 def plan_work(games: list[dict], existing: dict[int, str]):
     """Return (games, profiles, hashes) that need (re-)embedding."""
+    # corpus-wide stats for ranking tags (only when enabled; see config)
+    counts = tag_counts(games) if config.PROFILE_RANK_TAGS else None
     todo = []
     for g in games:
-        p = build_profile(g)
+        p = build_profile(g, counts, len(games))
         h = profile_hash(p)
         if existing.get(g["id"]) != h:
             todo.append((g, p, h))

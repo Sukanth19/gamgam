@@ -2,7 +2,7 @@
 
 from app import db
 from app.embed import plan_work
-from app.embeddings import build_profile, normalize, profile_hash
+from app.embeddings import build_profile, normalize, profile_hash, tag_counts
 from app.similar import find_similar
 from app.vector_store import GameVectorStore
 
@@ -20,7 +20,8 @@ def setup():
     db.upsert_games(conn, GAMES)
     store = GameVectorStore(path=None, collection="test_similar")
     games = db.get_all_games(conn)
-    store.upsert(games, VECS, [profile_hash(build_profile(g)) for g in games])
+    counts = tag_counts(games)
+    store.upsert(games, VECS, [profile_hash(build_profile(g, counts, len(games))) for g in games])
     return conn, store
 
 
