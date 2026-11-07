@@ -73,3 +73,8 @@ def test_split_words_respects_size_and_overlaps():
     assert all(len(p.split()) <= 57 for p in pieces)          # size + at most one sentence
     first_last = pieces[0].split(". ")[-1]
     assert first_last.rstrip(".") in pieces[1]                # overlap: last sentence repeats
+
+
+def test_template_only_heading_does_not_leave_empty_path_part():
+    page = parse_page("== {{Icon|x}} ==\n=== Journal entry ===\n" + "A monster lives in the swamp and eats travellers at night. " * 3)
+    assert [c.section for c in page.chunks] == ["Journal entry"]

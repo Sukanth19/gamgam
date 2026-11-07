@@ -2,6 +2,7 @@
 
     python -m app.wiki fetch                       # all games in app/wikis.py
     python -m app.wiki fetch --game "Outer Wilds"  # one game
+    python -m app.wiki rechunk                     # re-chunk stored pages, no network
     python -m app.wiki embed
     python -m app.wiki search "who is the pale king" [--game "Hollow Knight"] [-k 5]
     python -m app.wiki stats
@@ -31,7 +32,29 @@ def chunk_embed_text(c: dict) -> str:
     return f"{c['game']} — {where}\n{c['text']}"
 
 
-def fetch_wiki(conn, cfg: dict) -> None:
+def chunks_for(key: str, wikitext: str):
+    parsed = parse_page(wikitext)
+    chunks = [{"chunk_id": f"{key}#{i}", "position": i, "section": ch.section,
+               "kind": ch.kind, "text": ch.text, "spoiler": ch.spoiler}
+              for i, ch in enumerate(parsed.chunks)]
+    return chunks, parsed.page_spoiler
+
+
+def rechunk(conn) -> None:
+    """Re-run the chunker on stored wikitext: no network needed."""
+    n_pages = n_chunks = 0
+    for page in db.pages_with_wikitext(conn):
+        chunks, spoiler = chunks_for(page["page_key"], page["wikitext"])
+        db.save_page(conn, {**page, "page_spoiler": spoiler}, chunks)
+        n_pages += 1
+        n_chunks += len(chunks)
+    print(f"re-chunked {n_pages} pages -> {n_chunks} chunks")
+    missing = db.pages_missing_wikitext(conn)
+    if missing:
+        print(f"  {missing} pages have no stored wikitext; run `fetch --force` once")
+
+
+def fetch_wiki(conn, cfg: dict, force: bool = False) -> None:
     game = db.find_game_by_name(conn, cfg["game"])
     if game is None:
         print(f"  ! {cfg['game']!r} is not in the games db; skipping", file=sys.stderr)
@@ -42,22 +65,19 @@ def fetch_wiki(conn, cfg: dict) -> None:
         pages = select_pages(client, cfg["categories"], cfg["max_pages"], SKIP_TITLE_RE)
         revs = client.page_revisions([p["pageid"] for p in pages])
         known = db.page_revids(conn, host)
-        todo = [p["pageid"] for p in pages
-                if p["pageid"] in revs and known.get(f"{host}:{p['pageid']}") != revs[p["pageid"]]]
+        todo = [p["pageid"] for p in pages if p["pageid"] in revs and
+                (force or known.get(f"{host}:{p['pageid']}") != revs[p["pageid"]])]
         print(f"{game['name']}: {len(pages)} pages selected, {len(pages) - len(todo)} unchanged, "
               f"{len(todo)} to fetch", flush=True)
         n_chunks = 0
         for start in range(0, len(todo), 100):
             for page in client.fetch_pages(todo[start:start + 100]):
-                parsed = parse_page(page["wikitext"])
                 key = f"{host}:{page['pageid']}"
-                chunks = [{"chunk_id": f"{key}#{i}", "position": i, "section": ch.section,
-                           "kind": ch.kind, "text": ch.text, "spoiler": ch.spoiler}
-                          for i, ch in enumerate(parsed.chunks)]
+                chunks, spoiler = chunks_for(key, page["wikitext"])
                 db.save_page(conn, {"page_key": key, "game_id": game["id"], "wiki": host,
                                     "title": page["title"], "url": page["url"],
                                     "revid": page["revid"], "categories": page["categories"],
-                                    "page_spoiler": parsed.page_spoiler}, chunks)
+                                    "page_spoiler": spoiler, "wikitext": page["wikitext"]}, chunks)
                 n_chunks += len(chunks)
             print(f"  fetched {min(start + 100, len(todo))}/{len(todo)} pages", flush=True)
         print(f"  {n_chunks} chunks written")
@@ -112,7 +132,10 @@ def search(conn, query: str, k: int, game_name: str | None) -> None:
 def main():
     ap = argparse.ArgumentParser(description="Wiki lore: fetch, embed, search")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("fetch").add_argument("--game")
+    f = sub.add_parser("fetch")
+    f.add_argument("--game")
+    f.add_argument("--force", action="store_true", help="re-download even unchanged pages")
+    sub.add_parser("rechunk", help="re-run chunking on stored wikitext (offline)")
     sub.add_parser("embed")
     s = sub.add_parser("search")
     s.add_argument("query")
@@ -129,7 +152,9 @@ def main():
             if not cfgs:
                 sys.exit(f"error: no wiki configured for {args.game!r} (see app/wikis.py)")
             for cfg in cfgs:
-                fetch_wiki(conn, cfg)
+                fetch_wiki(conn, cfg, force=args.force)
+        elif args.cmd == "rechunk":
+            rechunk(conn)
         elif args.cmd == "embed":
             embed_lore(conn)
         elif args.cmd == "search":

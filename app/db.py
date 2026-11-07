@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS wiki_pages (
     revid        INTEGER NOT NULL,          -- unchanged revid => skip on re-fetch
     categories   TEXT NOT NULL DEFAULT '[]',
     page_spoiler INTEGER NOT NULL DEFAULT 0,
+    wikitext     TEXT,                      -- raw source, so we can re-chunk offline
     fetched_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 -- Chunks of those pages; replaced wholesale when a page's revision changes.
@@ -74,7 +75,15 @@ def connect(path: Path | str = config.DB_PATH) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA)
+    _migrate(conn)
     return conn
+
+
+def _migrate(conn: sqlite3.Connection):
+    """Tiny migrations for databases created by older versions of the schema."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(wiki_pages)")}
+    if "wikitext" not in cols:
+        conn.execute("ALTER TABLE wiki_pages ADD COLUMN wikitext TEXT")
 
 
 def upsert_games(conn: sqlite3.Connection, games: list[dict]) -> int:
@@ -176,12 +185,13 @@ def save_page(conn: sqlite3.Connection, page: dict, chunks: list[dict]):
     """Upsert a page and REPLACE its chunks (in one transaction)."""
     with conn:
         conn.execute(
-            "INSERT INTO wiki_pages (page_key, game_id, wiki, title, url, revid, categories, page_spoiler) "
-            "VALUES (:page_key, :game_id, :wiki, :title, :url, :revid, :categories, :page_spoiler) "
+            "INSERT INTO wiki_pages (page_key, game_id, wiki, title, url, revid, categories, "
+            "page_spoiler, wikitext) VALUES (:page_key, :game_id, :wiki, :title, :url, :revid, "
+            ":categories, :page_spoiler, :wikitext) "
             "ON CONFLICT(page_key) DO UPDATE SET title=excluded.title, url=excluded.url, "
-            "revid=excluded.revid, categories=excluded.categories, "
-            "page_spoiler=excluded.page_spoiler, fetched_at=datetime('now')",
-            {**page, "categories": json.dumps(page.get("categories") or []),
+            "revid=excluded.revid, categories=excluded.categories, page_spoiler=excluded.page_spoiler, "
+            "wikitext=COALESCE(excluded.wikitext, wiki_pages.wikitext), fetched_at=datetime('now')",
+            {"wikitext": None, **page, "categories": json.dumps(page.get("categories") or []),
              "page_spoiler": int(page.get("page_spoiler", False))})
         conn.execute("DELETE FROM lore_chunks WHERE page_key = ?", (page["page_key"],))
         conn.executemany(
@@ -211,3 +221,13 @@ def lore_stats(conn: sqlite3.Connection) -> list[tuple]:
         "SELECT g.name, COUNT(DISTINCT p.page_key), COUNT(c.chunk_id) FROM wiki_pages p "
         "JOIN games g ON g.id = p.game_id LEFT JOIN lore_chunks c ON c.page_key = p.page_key "
         "GROUP BY g.name ORDER BY g.name").fetchall()
+
+
+def pages_with_wikitext(conn: sqlite3.Connection) -> list[dict]:
+    rows = conn.execute("SELECT page_key, game_id, wiki, title, url, revid, categories, wikitext "
+                        "FROM wiki_pages WHERE wikitext IS NOT NULL")
+    return [{**dict(r), "categories": json.loads(r["categories"])} for r in rows]
+
+
+def pages_missing_wikitext(conn: sqlite3.Connection) -> int:
+    return conn.execute("SELECT COUNT(*) FROM wiki_pages WHERE wikitext IS NULL").fetchone()[0]

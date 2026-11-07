@@ -33,7 +33,9 @@ INFOBOX_SKIP_KEYS = re.compile(r"image|img|caption|icon|sprite|gallery|^name$|ti
 SKIP_SECTIONS = re.compile(r"^(gallery|images?|screenshots|videos?|sound ?files|audio|references|"
                            r"notes|footnotes|external links|see also|navigation|achievements|"
                            r"trivia|patch(es)?|update history|version history|concept art|"
-                           r"sprites?|other languages|in other languages)$", re.IGNORECASE)
+                           r"sprites?|other languages|in other languages|bugs|glitches|"
+                           r"developer comments|reward tree entries|unused content|cut content|"
+                           r"merchandise|appearances in other media)$", re.IGNORECASE)
 
 
 @dataclass
@@ -178,7 +180,7 @@ def parse_page(wikitext: str, size: int = config.CHUNK_WORDS,
         page.page_spoiler |= flags.get("page_spoiler", False)
         if len(text.split()) < config.CHUNK_MIN_WORDS:
             continue
-        sec_name = " > ".join(t for _, t in path)
+        sec_name = " > ".join(t for _, t in path if t)    # headings that were only a template clean to ""
         for piece in _split_words(text, size, overlap):
             page.chunks.append(Chunk(section=sec_name, text=piece, spoiler=flags.get("spoiler", False)))
     return page
