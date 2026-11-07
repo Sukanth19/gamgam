@@ -91,3 +91,14 @@ PROFILE_MAX_TAGS = 15          # tested 30: no better
 # DayZ/Rust next to Stardew Valley. Off until the phase-7 eval can measure it.
 PROFILE_RANK_TAGS = False
 PROFILE_MAX_DESC_CHARS = 1500
+
+# --- Wikis / lore (phase 3) ---
+WIKI_MIN_INTERVAL_S = 1.0    # ~1 request/second: polite to community wikis
+WIKI_MAX_RETRIES = 5
+WIKI_BATCH_SIZE = 20         # pages per content request (big pages -> server may split; we follow `continue`)
+CHUNK_WORDS = 250            # target chunk size; small = precise retrieval, big = more context
+CHUNK_OVERLAP_WORDS = 40     # shared words between neighbouring chunks so facts aren't cut in half
+CHUNK_MIN_WORDS = 12         # drop near-empty sections
+LORE_COLLECTION = f"lore_{EMBED_PROVIDER}"
+# bge models retrieve better when queries (not documents) carry this instruction.
+LOCAL_QUERY_PREFIX = "Represent this sentence for searching relevant passages: "

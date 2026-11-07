@@ -35,6 +35,31 @@ CREATE TABLE IF NOT EXISTS play_history (
     note       TEXT,
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Wiki pages we've fetched (phase 3). page_key = "<wiki host>:<pageid>".
+CREATE TABLE IF NOT EXISTS wiki_pages (
+    page_key     TEXT PRIMARY KEY,
+    game_id      INTEGER NOT NULL REFERENCES games(id),
+    wiki         TEXT NOT NULL,
+    title        TEXT NOT NULL,
+    url          TEXT,
+    revid        INTEGER NOT NULL,          -- unchanged revid => skip on re-fetch
+    categories   TEXT NOT NULL DEFAULT '[]',
+    page_spoiler INTEGER NOT NULL DEFAULT 0,
+    fetched_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+-- Chunks of those pages; replaced wholesale when a page's revision changes.
+CREATE TABLE IF NOT EXISTS lore_chunks (
+    chunk_id  TEXT PRIMARY KEY,              -- "<page_key>#<n>"
+    page_key  TEXT NOT NULL REFERENCES wiki_pages(page_key) ON DELETE CASCADE,
+    game_id   INTEGER NOT NULL,
+    position  INTEGER NOT NULL,
+    section   TEXT NOT NULL,
+    kind      TEXT NOT NULL,
+    text      TEXT NOT NULL,
+    spoiler   INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_chunks_game ON lore_chunks(game_id);
 """
 
 _JSON_FIELDS = ("genres", "tags", "platforms")
@@ -47,6 +72,7 @@ def connect(path: Path | str = config.DB_PATH) -> sqlite3.Connection:
         Path(path).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA)
     return conn
 
@@ -137,3 +163,51 @@ def get_history(conn: sqlite3.Connection) -> list[dict]:
         "SELECT h.game_id, g.name, h.verdict, h.note, h.updated_at FROM play_history h "
         "JOIN games g ON g.id = h.game_id ORDER BY h.verdict DESC, h.updated_at")
     return [dict(r) for r in rows]
+
+
+# --- wiki lore ----------------------------------------------------------------
+
+def page_revids(conn: sqlite3.Connection, wiki: str) -> dict[str, int]:
+    return {r[0]: r[1] for r in conn.execute(
+        "SELECT page_key, revid FROM wiki_pages WHERE wiki = ?", (wiki,))}
+
+
+def save_page(conn: sqlite3.Connection, page: dict, chunks: list[dict]):
+    """Upsert a page and REPLACE its chunks (in one transaction)."""
+    with conn:
+        conn.execute(
+            "INSERT INTO wiki_pages (page_key, game_id, wiki, title, url, revid, categories, page_spoiler) "
+            "VALUES (:page_key, :game_id, :wiki, :title, :url, :revid, :categories, :page_spoiler) "
+            "ON CONFLICT(page_key) DO UPDATE SET title=excluded.title, url=excluded.url, "
+            "revid=excluded.revid, categories=excluded.categories, "
+            "page_spoiler=excluded.page_spoiler, fetched_at=datetime('now')",
+            {**page, "categories": json.dumps(page.get("categories") or []),
+             "page_spoiler": int(page.get("page_spoiler", False))})
+        conn.execute("DELETE FROM lore_chunks WHERE page_key = ?", (page["page_key"],))
+        conn.executemany(
+            "INSERT INTO lore_chunks (chunk_id, page_key, game_id, position, section, kind, text, spoiler) "
+            "VALUES (:chunk_id, :page_key, :game_id, :position, :section, :kind, :text, :spoiler)",
+            [{**c, "page_key": page["page_key"], "game_id": page["game_id"],
+              "spoiler": int(c.get("spoiler", False))} for c in chunks])
+
+
+def get_lore_chunks(conn: sqlite3.Connection) -> list[dict]:
+    """All chunks joined with their page + game info (for embedding/citing)."""
+    rows = conn.execute(
+        "SELECT c.chunk_id, c.game_id, g.name AS game, p.title, p.url, c.section, c.kind, "
+        "c.text, c.spoiler, p.page_spoiler, p.categories, c.position "
+        "FROM lore_chunks c JOIN wiki_pages p ON p.page_key = c.page_key "
+        "JOIN games g ON g.id = c.game_id ORDER BY c.chunk_id")
+    out = []
+    for r in rows:
+        d = dict(r)
+        d["categories"] = json.loads(d["categories"])
+        out.append(d)
+    return out
+
+
+def lore_stats(conn: sqlite3.Connection) -> list[tuple]:
+    return conn.execute(
+        "SELECT g.name, COUNT(DISTINCT p.page_key), COUNT(c.chunk_id) FROM wiki_pages p "
+        "JOIN games g ON g.id = p.game_id LEFT JOIN lore_chunks c ON c.page_key = p.page_key "
+        "GROUP BY g.name ORDER BY g.name").fetchall()

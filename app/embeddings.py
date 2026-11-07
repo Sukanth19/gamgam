@@ -146,7 +146,8 @@ def _retry_delay_from_error(err) -> float | None:
 
 
 class GeminiEmbedder:
-    def __init__(self, client=None, *, batch_size: int = config.EMBED_BATCH_SIZE,
+    def __init__(self, client=None, *, task_type: str = TASK_TYPE,
+                 batch_size: int = config.EMBED_BATCH_SIZE,
                  min_interval: float = config.EMBED_MIN_INTERVAL_S,
                  max_retries: int = config.EMBED_MAX_RETRIES):
         if client is None:
@@ -155,6 +156,7 @@ class GeminiEmbedder:
                 raise RuntimeError("GEMINI_API_KEY is not set (see .env.example)")
             client = genai.Client(api_key=config.GEMINI_API_KEY)
         self.client = client
+        self.task_type = task_type
         self.batch_size = batch_size
         self.min_interval = min_interval
         self.max_retries = max_retries
@@ -162,7 +164,7 @@ class GeminiEmbedder:
 
     def _embed_once(self, texts: list[str]) -> list[list[float]]:
         from google.genai import errors, types
-        cfg = types.EmbedContentConfig(task_type=TASK_TYPE,
+        cfg = types.EmbedContentConfig(task_type=self.task_type,
                                        output_dimensionality=config.EMBEDDING_DIM)
         for attempt in range(self.max_retries + 1):
             wait = self.min_interval - (time.monotonic() - self._last)
@@ -200,17 +202,34 @@ class LocalEmbedder:
     PyTorch). First run downloads the model once into data/models/."""
 
     def __init__(self, model_name: str = config.LOCAL_EMBEDDING_MODEL,
-                 batch_size: int = config.LOCAL_EMBED_BATCH_SIZE):
+                 batch_size: int = config.LOCAL_EMBED_BATCH_SIZE, prefix: str = ""):
         from fastembed import TextEmbedding
         self.model = TextEmbedding(model_name, cache_dir=str(config.MODELS_DIR))
         self.batch_size = batch_size
+        self.prefix = prefix
 
     def embed(self, texts: list[str]):
         for start in range(0, len(texts), self.batch_size):
-            batch = texts[start:start + self.batch_size]
+            batch = [self.prefix + t for t in texts[start:start + self.batch_size]]
             yield start, [normalize(v.tolist()) for v in self.model.embed(batch)]
 
 
-def make_embedder():
-    """Pick the embedder from EMBED_PROVIDER (.env)."""
-    return GeminiEmbedder() if config.EMBED_PROVIDER == "gemini" else LocalEmbedder()
+def make_embedder(kind: str = "similarity"):
+    """Pick the embedder from EMBED_PROVIDER (.env).
+
+    kind: "similarity" (game <-> game), "document" (lore chunks being stored)
+    or "query" (a question searching those chunks). Retrieval models embed
+    questions and passages slightly differently, which helps them match a short
+    question to a long answer passage.
+    """
+    if config.EMBED_PROVIDER == "gemini":
+        task = {"similarity": TASK_TYPE, "document": "RETRIEVAL_DOCUMENT",
+                "query": "RETRIEVAL_QUERY"}[kind]
+        return GeminiEmbedder(task_type=task)
+    return LocalEmbedder(prefix=config.LOCAL_QUERY_PREFIX if kind == "query" else "")
+
+
+def chunk_hash(text: str) -> str:
+    """Cache key for a lore chunk (document-mode embedding)."""
+    key = f"{config.EMBEDDING_MODEL}|{config.EMBEDDING_DIM}|document|{text}"
+    return hashlib.sha256(key.encode()).hexdigest()[:16]
