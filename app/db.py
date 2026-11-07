@@ -302,3 +302,11 @@ def get_chunks_by_ids(conn: sqlite3.Connection, chunk_ids: list[str]) -> dict[st
         f"c.text, c.spoiler, p.page_spoiler FROM lore_chunks c JOIN wiki_pages p ON p.page_key = c.page_key "
         f"JOIN games g ON g.id = c.game_id WHERE c.chunk_id IN ({marks})", chunk_ids)
     return {r["chunk_id"]: dict(r) for r in rows}
+
+
+def wiki_titles_by_game(conn: sqlite3.Connection) -> dict[str, list[str]]:
+    out: dict[str, list[str]] = {}
+    for name, title in conn.execute(
+            "SELECT g.name, p.title FROM wiki_pages p JOIN games g ON g.id = p.game_id"):
+        out.setdefault(name, []).append(title)
+    return out

@@ -48,3 +48,22 @@ def hybrid_search(conn, store: LoreVectorStore, query_vec: list[float], question
 
 def best_similarity(hits: list[dict]) -> float:
     return max((h["similarity"] for h in hits if h["similarity"] is not None), default=0.0)
+
+
+def guess_game_by_keywords(conn, question: str, k: int = 10, min_share: float = 0.8) -> str | None:
+    """Which lore game is this question about? Let BM25 vote across ALL wikis:
+    "who is Yennefer" -> 10/10 top hits are Witcher. Vague questions ("what is
+    the meaning of life") split ~5/3, so we require a clear majority."""
+    hits = db.bm25_search(conn, question, k)
+    if len(hits) < k // 2:
+        return None
+    chunks = db.get_chunks_by_ids(conn, [cid for cid, _ in hits])
+    counts: dict[str, int] = {}
+    for cid, _ in hits:
+        if cid in chunks:
+            g = chunks[cid]["game"]
+            counts[g] = counts.get(g, 0) + 1
+    if not counts:
+        return None
+    best = max(counts, key=counts.get)
+    return best if counts[best] >= min_share * len(hits) else None
