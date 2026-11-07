@@ -43,7 +43,13 @@ CHAT_RETRIES_PER_MODEL = 2
 
 # --- Recommendations ---
 DISLIKE_WEIGHT = 0.5       # Rocchio beta: how hard dislikes push the taste vector away
-CANDIDATE_POOL = 60        # nearest neighbours fetched before filtering + MMR
+CANDIDATE_POOL = 60        # nearest neighbours of the taste vector fetched before MMR
+PER_LIKE_POOL = 20         # + nearest neighbours of EACH liked game (multi-interest)
+# relevance = TASTE_BLEND * sim(taste vector) + (1 - TASTE_BLEND) * sim(closest liked game)
+#             - DISLIKE_WEIGHT * sim(closest disliked game)
+# Pure average (1.0) lets your majority taste outvote the rest; pure max (0.0)
+# just returns each liked game's clones. A blend keeps both.
+TASTE_BLEND = 0.5
 MMR_LAMBDA = 0.7           # 1.0 = pure relevance, lower = more variety
 
 # --- Paths ---

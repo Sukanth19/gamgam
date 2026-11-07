@@ -6,9 +6,13 @@
 How it works:
 1. Taste vector (Rocchio): mean(liked vectors) - beta * mean(disliked vectors).
    Liking pulls your "taste point" towards games; disliking pushes it away.
-2. Fetch the nearest ~60 games to that point, drop ones you've played.
-3. MMR re-ranking picks 10 that are relevant *and* not all clones of each other.
-4. For each pick, "because you liked X" = your liked game closest to it.
+2. Candidates = nearest games to the taste vector + nearest games to EACH liked
+   game ("multi-interest"). An average of 3 platformers + 1 space game sits
+   near the platformers; per-like neighbours keep the space game in play.
+3. Relevance blends "close to your overall taste" with "close to one specific
+   game you liked", minus "close to something you disliked".
+4. MMR re-ranking picks 10 that are relevant *and* not all clones of each other.
+5. For each pick, "because you liked X" = your liked game closest to it.
 """
 
 import argparse
@@ -27,7 +31,7 @@ def _unit(v: np.ndarray) -> np.ndarray:
 
 
 def taste_vector(liked: list, disliked: list, beta: float = config.DISLIKE_WEIGHT) -> np.ndarray:
-    if not liked:
+    if len(liked) == 0:
         raise ValueError("like at least one game first")
     v = np.mean(np.asarray(liked, dtype=float), axis=0)
     if disliked:
@@ -35,12 +39,25 @@ def taste_vector(liked: list, disliked: list, beta: float = config.DISLIKE_WEIGH
     return _unit(v)
 
 
-def mmr(query: np.ndarray, candidates: list[dict], k: int,
+def _matrix(vectors) -> np.ndarray:
+    return np.asarray([_unit(np.asarray(v, dtype=float)) for v in vectors])
+
+
+def relevance_scores(cand: np.ndarray, taste: np.ndarray, liked: np.ndarray,
+                     disliked: np.ndarray | None, blend: float = config.TASTE_BLEND,
+                     beta: float = config.DISLIKE_WEIGHT) -> np.ndarray:
+    """cand: (n, d) unit vectors. Returns one relevance score per candidate."""
+    score = blend * (cand @ taste) + (1 - blend) * (cand @ liked.T).max(axis=1)
+    if disliked is not None and len(disliked):
+        score -= beta * (cand @ disliked.T).max(axis=1)
+    return score
+
+
+def mmr(candidates: list[dict], relevance: np.ndarray, k: int,
         lam: float = config.MMR_LAMBDA) -> list[dict]:
     """Maximal Marginal Relevance: greedily pick the candidate with the best
     lam * relevance - (1 - lam) * (similarity to the closest pick so far)."""
-    vecs = np.asarray([_unit(np.asarray(c["vector"], dtype=float)) for c in candidates])
-    relevance = vecs @ query
+    vecs = _matrix(c["vector"] for c in candidates)
     chosen: list[int] = []
     while len(chosen) < min(k, len(candidates)):
         redundancy = (vecs @ vecs[chosen].T).max(axis=1) if chosen else np.zeros(len(candidates))
@@ -60,11 +77,24 @@ def recommend(conn, store: GameVectorStore, k: int = 10) -> tuple[list[dict], li
                          [vecs[h["game_id"]] for h in disliked])
 
     played = {h["game_id"] for h in history}
-    pool = store.query_with_vectors(list(taste), config.CANDIDATE_POOL + len(played))
-    pool = [c for c in pool if c["id"] not in played]
-    picks = mmr(taste, pool, k)
+    # Candidate pool: taste-vector neighbours + each liked game's neighbours.
+    pool: dict[int, dict] = {}
+    queries = [(list(taste), config.CANDIDATE_POOL)] + \
+              [(vecs[h["game_id"]], config.PER_LIKE_POOL) for h in liked]
+    for vec, n in queries:
+        for c in store.query_with_vectors(vec, n + len(played)):
+            if c["id"] not in played:
+                pool.setdefault(c["id"], c)
+    candidates = list(pool.values())
+    if not candidates:
+        return [], history
 
-    liked_mat = np.asarray([_unit(np.asarray(vecs[h["game_id"]], dtype=float)) for h in liked])
+    cand = _matrix(c["vector"] for c in candidates)
+    liked_mat = _matrix(vecs[h["game_id"]] for h in liked)
+    disliked_mat = _matrix(vecs[h["game_id"]] for h in disliked) if disliked else None
+    relevance = relevance_scores(cand, taste, liked_mat, disliked_mat)
+    picks = mmr(candidates, relevance, k)
+
     for p in picks:
         sims = liked_mat @ _unit(np.asarray(p.pop("vector"), dtype=float))
         p["because"] = liked[int(np.argmax(sims))]["name"]

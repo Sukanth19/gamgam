@@ -5,7 +5,7 @@ The user is learning, so briefly explain the key decisions when changing code.
 
 ## Roadmap
 1. [done] Fetch game metadata (IGDB by default; RAWG optional) into SQLite, embed it, "similar games" search
-2. [done] Play history (liked/disliked) -> taste-vector recommendations, with Gemini explaining each pick. Known gap: one averaged taste vector drowns minority tastes (multi-interest retrieval would fix)
+2. [done] Play history (liked/disliked) -> taste-vector recommendations, with Gemini explaining each pick. Multi-interest: candidates from the taste vector + each liked game's neighbours; relevance blends both (`TASTE_BLEND`). Known gap: game names are in the profile, so title look-alikes match (Outer Wilds -> The Outer Worlds); evaluate removing names in phase 7
 3. Scrape Fandom wikis (MediaWiki API) for 3-5 games, chunk by section, embed
 4. Lore Q&A: hybrid BM25 + vector search, answers with citations, says "I don't know" when unsure
 5. Intent router + Streamlit chat UI

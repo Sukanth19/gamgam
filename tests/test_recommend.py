@@ -5,7 +5,7 @@ import pytest
 
 from app import db, explain
 from app.embeddings import normalize
-from app.recommend import mmr, recommend, taste_vector
+from app.recommend import mmr, recommend, relevance_scores, taste_vector
 from app.vector_store import GameVectorStore
 
 
@@ -27,8 +27,40 @@ def test_mmr_avoids_near_duplicates():
     cands = [{"id": 1, "vector": normalize([1, 0.05])},   # very relevant
              {"id": 2, "vector": normalize([1, 0.06])},   # near-clone of 1
              {"id": 3, "vector": normalize([1, -0.6])}]   # less relevant, different
-    assert [c["id"] for c in mmr(q, cands, k=2, lam=1.0)] == [1, 2]   # pure relevance
-    assert [c["id"] for c in mmr(q, cands, k=2, lam=0.5)] == [1, 3]   # diversity kicks in
+    rel = np.array([np.dot(c["vector"], q) for c in cands])
+    assert [c["id"] for c in mmr(cands, rel, k=2, lam=1.0)] == [1, 2]   # pure relevance
+    assert [c["id"] for c in mmr(cands, rel, k=2, lam=0.5)] == [1, 3]   # diversity kicks in
+
+
+def test_relevance_blend_lets_a_minority_taste_compete():
+    liked = np.array([[1.0, 0, 0], [1.0, 0, 0], [1.0, 0, 0], [0, 1.0, 0]])  # 3 platformers + 1 space game
+    taste = taste_vector(liked, [])
+    cand = np.array([[0.8, 0.6, 0],      # vaguely between both tastes
+                     [0, 1.0, 0]])       # clearly a space game
+    pure_avg = relevance_scores(cand, taste, liked, None, blend=1.0)
+    blended = relevance_scores(cand, taste, liked, None, blend=0.5)
+    gap_avg = pure_avg[0] - pure_avg[1]
+    gap_blend = blended[0] - blended[1]
+    assert gap_avg > 0.5                 # averaging buries the space game...
+    assert gap_blend < gap_avg / 2       # ...the blend at least halves the gap;
+    # pool expansion + MMR's redundancy penalty do the rest (see end-to-end test)
+
+
+def test_recommend_gives_minority_like_a_pick():
+    conn = db.connect(":memory:")
+    games = [(1, "Plat A", [1, 0, 0]), (2, "Plat B", [0.98, 0.2, 0]), (3, "Plat C", [0.98, -0.2, 0]),
+             (4, "Space", [0, 0, 1])] + \
+            [(10 + i, f"Plat clone {i}", [1, 0.05 * (i - 3), 0.02]) for i in range(8)] + \
+            [(30, "Space clone", [0.1, 0, 1])]
+    db.upsert_games(conn, [{"id": i, "slug": f"g{i}", "name": n} for i, n, _ in games])
+    store = GameVectorStore(path=None, collection="test_minority")
+    by_id = {g["id"]: g for g in db.get_all_games(conn)}
+    store.upsert([by_id[i] for i, _, _ in games], [normalize(v) for _, _, v in games], ["h"] * len(games))
+    for gid in (1, 2, 3, 4):
+        db.set_verdict(conn, gid, "liked")
+    picks, _ = recommend(conn, store, k=5)
+    assert "Space clone" in [p["name"] for p in picks]
+    assert next(p for p in picks if p["name"] == "Space clone")["because"] == "Space"
 
 
 GAMES = [  # id, name, vector (3 "taste" axes: metroidvania, puzzle, sports)
