@@ -8,7 +8,7 @@ The user is learning, so briefly explain the key decisions when changing code.
 2. [done] Play history (liked/disliked) -> taste-vector recommendations, with Gemini explaining each pick. Multi-interest: candidates from the taste vector + each liked game's neighbours; relevance blends both (`TASTE_BLEND`). Known gap: game names are in the profile, so title look-alikes match (Outer Wilds -> The Outer Worlds); evaluate removing names in phase 7
 3. [done] Wiki lore (MediaWiki API) for Hollow Knight, Outer Wilds, Witcher 3, Portal 2: 775 pages -> ~5.1k chunks, ~18 min to embed locally. Spoilers: Portal marks inline `{{spoiler|..}}`, Outer Wilds whole pages; HK and Witcher don't mark spoilers (phase 6 needs another signal, e.g. area/quest categories)
 4. [done] Lore Q&A: hybrid BM25 (SQLite FTS5) + vector search fused with RRF, grounded Gemini answers with checked/renumbered citations, "I don't know" via similarity gate (0.55, calibrated on 16 questions) + model's answerable flag. Eval seed set: `eval/lore_questions.jsonl`
-5. Intent router + Streamlit chat UI
+5. [done] Intent router (rules -> wiki-title entities -> BM25 game vote -> Gemini fallback) + Streamlit chat UI (`uv run streamlit run streamlit_app.py`)
 6. Spoiler control (filter lore by how far the user has played)
 7. Evaluation harness
 
@@ -38,6 +38,9 @@ The user is learning, so briefly explain the key decisions when changing code.
 - `app/llm.py` – shared Gemini JSON helper: model fallback (`CHAT_MODELS`), 60s timeout, never raises
 - `app/retrieval.py` – hybrid search: vector + BM25 (`lore_fts`), Reciprocal Rank Fusion
 - `app/ask.py` – `python -m app.ask "question" --game X [--debug]`
+- `app/router.py` – intent + game detection; single-word titles ("Inside", "Journey") need title-case to match
+- `app/chat.py` – `Assistant.handle(text, last_game) -> Reply`; all chat logic, no UI code
+- `streamlit_app.py` – UI only (chat, sidebar likes/dislikes, sources w/ spoiler expander); usage stats off in `.streamlit/config.toml`
 - `eval/` – question sets for phase 7
 - `tests/` – pytest (`uv run pytest`)
 
@@ -50,4 +53,5 @@ The user is learning, so briefly explain the key decisions when changing code.
 - Lore embeddings use retrieval mode: documents plain, queries get the bge query prefix (`make_embedder("query")`).
 - FTS5 queries are built by `db.fts_query` (quoted word tokens OR'd): never pass raw user text to MATCH.
 - Citations: answers may only cite sources that were sent; `check_citations` drops others and splits "[1, 2]".
+- UI smoke test: `streamlit.testing.v1.AppTest` drives streamlit_app.py headlessly (loads real models; not in the unit suite).
 - Commit messages: all lowercase, no AI attribution/co-author lines.

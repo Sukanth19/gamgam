@@ -36,6 +36,7 @@ class Route:
     intent: str
     games: list[str] = field(default_factory=list)   # canonical names, in order of mention
     via: str = "rules"                                # "rules" | "llm" | "fallback"
+    record: str | None = None                         # "liked"/"disliked" to save before acting
 
     @property
     def game(self) -> str | None:
@@ -145,13 +146,19 @@ def route_with_rules(text: str, games: list[str], last_game: str | None,
         return Route("similar", games)
     if _LIKE.search(text) and games:
         # "I loved X, what should I play next?" -> record it AND recommend
-        return Route("recommend" if _RECOMMEND.search(text) else "like", games)
+        if _RECOMMEND.search(text):
+            return Route("recommend", games, record="liked")
+        return Route("like", games)
     if _RECOMMEND.search(text):
         return Route("recommend", games)
     if _LORE.search(text):
         if has_lore_game:
             lore = [g for g in games if g in LORE_GAMES]
             return Route("lore", lore + [g for g in games if g not in lore])
+        if games:
+            # a lore-style question about a game we have no wiki for: still "lore",
+            # so the user hears "no lore for X yet" rather than an unrelated answer
+            return Route("lore", games)
         if not games:
             # "why did the Nomai leave?" -> a wiki page title points at the game
             guess = entities.guess_game(text) if entities else None

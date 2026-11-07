@@ -29,11 +29,17 @@ def m():
     ("who is Caroline in Portal 2", "lore", "Portal 2"),
     ("how do I beat a leshen in witcher 3", "lore", "The Witcher 3: Wild Hunt"),
     ("tell me about hk's ending", "lore", "Hollow Knight"),
+    ("what's the lore of Stardew Valley?", "lore", "Stardew Valley"),
 ])
 def test_rules(m, text, intent, game):
     r = route(text, m)
     assert (r.intent, r.game) == (intent, game)
     assert r.via == "rules"
+
+
+def test_like_plus_recommend_records_the_like(m):
+    assert route("I loved Celeste, what should I play next?", m).record == "liked"
+    assert route("recommend me something", m).record is None
 
 
 def test_followup_uses_last_lore_game(m):
