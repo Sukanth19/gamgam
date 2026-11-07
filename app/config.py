@@ -37,9 +37,11 @@ EMBEDDING_MODEL = GEMINI_EMBEDDING_MODEL if EMBED_PROVIDER == "gemini" else LOCA
 EMBEDDING_DIM = 768
 # Chat models, tried in order: free-tier models often return 503 "high demand",
 # so we fall back to the next one instead of failing.
-CHAT_MODELS = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-2.5-flash", "gemini-flash-lite-latest"]
+# 3.5-flash first: 3.8-flash was overloaded (503/504) on every call in 2026-11 testing.
+CHAT_MODELS = ["gemini-3.5-flash", "gemini-3.8-flash", "gemini-2.5-flash", "gemini-flash-lite-latest"]
 CHAT_MODEL = CHAT_MODELS[0]
 CHAT_RETRIES_PER_MODEL = 2
+CHAT_TIMEOUT_S = 60         # per request; a stalled model is skipped
 
 # --- Recommendations ---
 DISLIKE_WEIGHT = 0.5       # Rocchio beta: how hard dislikes push the taste vector away
@@ -109,5 +111,6 @@ RRF_K = 60                   # Reciprocal Rank Fusion constant (standard value f
 ANSWER_CONTEXT_CHUNKS = 8    # chunks sent to the LLM as numbered sources
 # If the best vector match is below this, the wiki very likely doesn't cover the
 # question: say "I don't know" without spending an LLM call. Calibrated on real
-# questions (on-topic best matches ~0.55-0.80; see `python -m app.ask --debug`).
-MIN_ANSWER_SIMILARITY = 0.50
+# questions (16 test questions: on-topic best 0.57-0.79, off-topic 0.38-0.54 -
+# a thin margin, so the LLM's own "not answerable" check is the second gate).
+MIN_ANSWER_SIMILARITY = 0.55

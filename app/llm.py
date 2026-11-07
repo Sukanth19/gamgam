@@ -19,7 +19,11 @@ def make_client():
         log.warning("GEMINI_API_KEY not set")
         return None
     from google import genai
-    return genai.Client(api_key=config.GEMINI_API_KEY)
+    from google.genai import types
+    # Without a timeout one stalled free-tier model can hang a request for minutes;
+    # with it, we give up on that model and fall through to the next one.
+    return genai.Client(api_key=config.GEMINI_API_KEY,
+                        http_options=types.HttpOptions(timeout=config.CHAT_TIMEOUT_S * 1000))
 
 
 def generate_json(client, prompt: str, schema, *, temperature: float = 0.4, what: str = "response"):

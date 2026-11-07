@@ -7,7 +7,7 @@ The user is learning, so briefly explain the key decisions when changing code.
 1. [done] Fetch game metadata (IGDB by default; RAWG optional) into SQLite, embed it, "similar games" search
 2. [done] Play history (liked/disliked) -> taste-vector recommendations, with Gemini explaining each pick. Multi-interest: candidates from the taste vector + each liked game's neighbours; relevance blends both (`TASTE_BLEND`). Known gap: game names are in the profile, so title look-alikes match (Outer Wilds -> The Outer Worlds); evaluate removing names in phase 7
 3. [done] Wiki lore (MediaWiki API) for Hollow Knight, Outer Wilds, Witcher 3, Portal 2: 775 pages -> ~5.1k chunks, ~18 min to embed locally. Spoilers: Portal marks inline `{{spoiler|..}}`, Outer Wilds whole pages; HK and Witcher don't mark spoilers (phase 6 needs another signal, e.g. area/quest categories)
-4. Lore Q&A: hybrid BM25 + vector search, answers with citations, says "I don't know" when unsure
+4. [done] Lore Q&A: hybrid BM25 (SQLite FTS5) + vector search fused with RRF, grounded Gemini answers with checked/renumbered citations, "I don't know" via similarity gate (0.55, calibrated on 16 questions) + model's answerable flag. Eval seed set: `eval/lore_questions.jsonl`
 5. Intent router + Streamlit chat UI
 6. Spoiler control (filter lore by how far the user has played)
 7. Evaluation harness
@@ -35,6 +35,10 @@ The user is learning, so briefly explain the key decisions when changing code.
 - `app/wiki_client.py` – MediaWiki API client (batched page fetch, follows `continue`, ~1 req/s)
 - `app/chunking.py` – wikitext -> chunks: infobox facts, keeps quote/dialogue/spoiler template text, HTML headings, skips gallery/trivia/bugs, ~250-word chunks w/ overlap
 - `app/wiki.py` – `python -m app.wiki fetch [--game X] [--force] | rechunk | embed | search "q" [--game X] | stats`
+- `app/llm.py` – shared Gemini JSON helper: model fallback (`CHAT_MODELS`), 60s timeout, never raises
+- `app/retrieval.py` – hybrid search: vector + BM25 (`lore_fts`), Reciprocal Rank Fusion
+- `app/ask.py` – `python -m app.ask "question" --game X [--debug]`
+- `eval/` – question sets for phase 7
 - `tests/` – pytest (`uv run pytest`)
 
 ## Conventions
@@ -44,4 +48,6 @@ The user is learning, so briefly explain the key decisions when changing code.
 - Profile changes re-embed everything (~7 min local). Judge them on a fixed set of seed games, not one example; tag ranking (`PROFILE_RANK_TAGS`) made results worse by eye.
 - Keep raw source data (wikitext in `wiki_pages`) separate from derived data (chunks, vectors): chunker changes -> `rechunk` + `embed`, no re-download.
 - Lore embeddings use retrieval mode: documents plain, queries get the bge query prefix (`make_embedder("query")`).
+- FTS5 queries are built by `db.fts_query` (quoted word tokens OR'd): never pass raw user text to MATCH.
+- Citations: answers may only cite sources that were sent; `check_citations` drops others and splits "[1, 2]".
 - Commit messages: all lowercase, no AI attribution/co-author lines.
