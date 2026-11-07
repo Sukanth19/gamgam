@@ -102,3 +102,12 @@ CHUNK_MIN_WORDS = 12         # drop near-empty sections
 LORE_COLLECTION = f"lore_{EMBED_PROVIDER}"
 # bge models retrieve better when queries (not documents) carry this instruction.
 LOCAL_QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
+
+# --- Lore Q&A (phase 4) ---
+RETRIEVE_POOL = 30           # candidates from EACH of vector search and BM25
+RRF_K = 60                   # Reciprocal Rank Fusion constant (standard value from the RRF paper)
+ANSWER_CONTEXT_CHUNKS = 8    # chunks sent to the LLM as numbered sources
+# If the best vector match is below this, the wiki very likely doesn't cover the
+# question: say "I don't know" without spending an LLM call. Calibrated on real
+# questions (on-topic best matches ~0.55-0.80; see `python -m app.ask --debug`).
+MIN_ANSWER_SIMILARITY = 0.50

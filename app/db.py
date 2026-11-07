@@ -5,6 +5,7 @@ them in SQL, so separate join tables would only add complexity.
 """
 
 import json
+import re
 import sqlite3
 from pathlib import Path
 
@@ -61,6 +62,14 @@ CREATE TABLE IF NOT EXISTS lore_chunks (
     spoiler   INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_chunks_game ON lore_chunks(game_id);
+
+-- Full-text index over chunks for BM25 keyword search (phase 4). FTS5 ships
+-- with SQLite. "porter" stems words (fighting -> fight); "remove_diacritics"
+-- lets "Pokemon" match "Pokémon".
+CREATE VIRTUAL TABLE IF NOT EXISTS lore_fts USING fts5(
+    chunk_id UNINDEXED, game_id UNINDEXED, title, section, text,
+    tokenize = 'porter unicode61 remove_diacritics 2'
+);
 """
 
 _JSON_FIELDS = ("genres", "tags", "platforms")
@@ -84,6 +93,19 @@ def _migrate(conn: sqlite3.Connection):
     cols = {r[1] for r in conn.execute("PRAGMA table_info(wiki_pages)")}
     if "wikitext" not in cols:
         conn.execute("ALTER TABLE wiki_pages ADD COLUMN wikitext TEXT")
+    # Chunks created before the FTS index existed: index them once.
+    n_fts = conn.execute("SELECT COUNT(*) FROM lore_fts").fetchone()[0]
+    if n_fts == 0 and conn.execute("SELECT 1 FROM lore_chunks LIMIT 1").fetchone():
+        rebuild_fts(conn)
+
+
+def rebuild_fts(conn: sqlite3.Connection):
+    with conn:
+        conn.execute("DELETE FROM lore_fts")
+        conn.execute(
+            "INSERT INTO lore_fts (chunk_id, game_id, title, section, text) "
+            "SELECT c.chunk_id, c.game_id, p.title, c.section, c.text "
+            "FROM lore_chunks c JOIN wiki_pages p ON p.page_key = c.page_key")
 
 
 def upsert_games(conn: sqlite3.Connection, games: list[dict]) -> int:
@@ -193,12 +215,18 @@ def save_page(conn: sqlite3.Connection, page: dict, chunks: list[dict]):
             "wikitext=COALESCE(excluded.wikitext, wiki_pages.wikitext), fetched_at=datetime('now')",
             {"wikitext": None, **page, "categories": json.dumps(page.get("categories") or []),
              "page_spoiler": int(page.get("page_spoiler", False))})
+        conn.execute("DELETE FROM lore_fts WHERE chunk_id IN "
+                     "(SELECT chunk_id FROM lore_chunks WHERE page_key = ?)", (page["page_key"],))
         conn.execute("DELETE FROM lore_chunks WHERE page_key = ?", (page["page_key"],))
         conn.executemany(
             "INSERT INTO lore_chunks (chunk_id, page_key, game_id, position, section, kind, text, spoiler) "
             "VALUES (:chunk_id, :page_key, :game_id, :position, :section, :kind, :text, :spoiler)",
             [{**c, "page_key": page["page_key"], "game_id": page["game_id"],
               "spoiler": int(c.get("spoiler", False))} for c in chunks])
+        # keep the keyword index in the same transaction, so they can't drift apart
+        conn.executemany(
+            "INSERT INTO lore_fts (chunk_id, game_id, title, section, text) VALUES (?, ?, ?, ?, ?)",
+            [(c["chunk_id"], page["game_id"], page["title"], c["section"], c["text"]) for c in chunks])
 
 
 def get_lore_chunks(conn: sqlite3.Connection) -> list[dict]:
@@ -231,3 +259,46 @@ def pages_with_wikitext(conn: sqlite3.Connection) -> list[dict]:
 
 def pages_missing_wikitext(conn: sqlite3.Connection) -> int:
     return conn.execute("SELECT COUNT(*) FROM wiki_pages WHERE wikitext IS NULL").fetchone()[0]
+
+
+_STOPWORDS = frozenset("""a an and are as at be but by did do does for from had has have how i in
+is it its me my of on or so that the their them then there these they this to was were what
+when where which who whom why will with would you your can could should about into""".split())
+
+
+def fts_query(question: str) -> str | None:
+    """Turn free text into a SAFE FTS5 query.
+
+    FTS5 has its own syntax: quotes, -, *, :, AND/OR/NOT, NEAR, ^ ... are
+    operators, so raw user text can error out or mean something unintended.
+    We keep only word tokens, drop stopwords, quote each one, and OR them:
+    BM25 then ranks chunks matching more (and rarer) words higher.
+    """
+    words = [w for w in re.findall(r"\w+", question.lower()) if w not in _STOPWORDS]
+    words = list(dict.fromkeys(words))            # dedupe, keep order
+    return " OR ".join(f'"{w}"' for w in words) if words else None
+
+
+def bm25_search(conn: sqlite3.Connection, question: str, k: int,
+                game_id: int | None = None) -> list[tuple[str, float]]:
+    """[(chunk_id, score)] best first. bm25() returns lower = better; columns are
+    weighted: a match in the page title counts more than one in the body."""
+    q = fts_query(question)
+    if q is None:
+        return []
+    sql = ("SELECT chunk_id, bm25(lore_fts, 0, 0, 4.0, 2.0, 1.0) AS s FROM lore_fts "
+           "WHERE lore_fts MATCH ?" + (" AND game_id = ?" if game_id is not None else "") +
+           " ORDER BY s LIMIT ?")
+    params = (q, game_id, k) if game_id is not None else (q, k)
+    return [(r[0], r[1]) for r in conn.execute(sql, params)]
+
+
+def get_chunks_by_ids(conn: sqlite3.Connection, chunk_ids: list[str]) -> dict[str, dict]:
+    if not chunk_ids:
+        return {}
+    marks = ",".join("?" * len(chunk_ids))
+    rows = conn.execute(
+        "SELECT c.chunk_id, c.game_id, g.name AS game, p.title, p.url, c.section, c.kind, "
+        f"c.text, c.spoiler, p.page_spoiler FROM lore_chunks c JOIN wiki_pages p ON p.page_key = c.page_key "
+        f"JOIN games g ON g.id = c.game_id WHERE c.chunk_id IN ({marks})", chunk_ids)
+    return {r["chunk_id"]: dict(r) for r in rows}
