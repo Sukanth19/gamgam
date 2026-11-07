@@ -48,5 +48,19 @@ class GameVectorStore:
         return [{"id": int(i), **m, "similarity": 1.0 - d}
                 for i, m, d in zip(res["ids"][0], res["metadatas"][0], res["distances"][0])]
 
+    def get_vectors(self, game_ids: list[int]) -> dict[int, list[float]]:
+        if not game_ids:
+            return {}
+        got = self.col.get(ids=[str(i) for i in game_ids], include=["embeddings"])
+        return {int(i): list(v) for i, v in zip(got["ids"], got["embeddings"])}
+
+    def query_with_vectors(self, vector: list[float], k: int) -> list[dict]:
+        """Like query(), but also returns each hit's vector (needed for MMR)."""
+        res = self.col.query(query_embeddings=[vector], n_results=k,
+                             include=["metadatas", "distances", "embeddings"])
+        return [{"id": int(i), **m, "similarity": 1.0 - d, "vector": list(v)}
+                for i, m, d, v in zip(res["ids"][0], res["metadatas"][0],
+                                      res["distances"][0], res["embeddings"][0])]
+
     def count(self) -> int:
         return self.col.count()
