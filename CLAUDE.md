@@ -6,7 +6,7 @@ The user is learning, so briefly explain the key decisions when changing code.
 ## Roadmap
 1. [done] Fetch game metadata (IGDB by default; RAWG optional) into SQLite, embed it, "similar games" search
 2. [done] Play history (liked/disliked) -> taste-vector recommendations, with Gemini explaining each pick. Multi-interest: candidates from the taste vector + each liked game's neighbours; relevance blends both (`TASTE_BLEND`). Known gap: game names are in the profile, so title look-alikes match (Outer Wilds -> The Outer Worlds); evaluate removing names in phase 7
-3. Scrape Fandom wikis (MediaWiki API) for 3-5 games, chunk by section, embed
+3. [done] Wiki lore (MediaWiki API) for Hollow Knight, Outer Wilds, Witcher 3, Portal 2: 775 pages -> ~5.1k chunks, ~18 min to embed locally. Spoilers: Portal marks inline `{{spoiler|..}}`, Outer Wilds whole pages; HK and Witcher don't mark spoilers (phase 6 needs another signal, e.g. area/quest categories)
 4. Lore Q&A: hybrid BM25 + vector search, answers with citations, says "I don't know" when unsure
 5. Intent router + Streamlit chat UI
 6. Spoiler control (filter lore by how far the user has played)
@@ -31,6 +31,10 @@ The user is learning, so briefly explain the key decisions when changing code.
 - `app/history.py` – `python -m app.history like|dislike|list|remove "Game"` (play_history table)
 - `app/recommend.py` – Rocchio taste vector + MMR diversity + "because you liked X"; `python -m app.recommend`
 - `app/explain.py` – one grounded Gemini call (JSON schema) explaining all picks; falls back across `CHAT_MODELS`, never fatal
+- `app/wikis.py` – which wikis/categories to fetch (add a game = add an entry; any MediaWiki api.php)
+- `app/wiki_client.py` – MediaWiki API client (batched page fetch, follows `continue`, ~1 req/s)
+- `app/chunking.py` – wikitext -> chunks: infobox facts, keeps quote/dialogue/spoiler template text, HTML headings, skips gallery/trivia/bugs, ~250-word chunks w/ overlap
+- `app/wiki.py` – `python -m app.wiki fetch [--game X] [--force] | rechunk | embed | search "q" [--game X] | stats`
 - `tests/` – pytest (`uv run pytest`)
 
 ## Conventions
@@ -38,4 +42,6 @@ The user is learning, so briefly explain the key decisions when changing code.
 - Re-runs must be idempotent: upsert by source id, skip already-embedded games (profile hash cache).
 - Respect free-tier rate limits (IGDB 4 req/s, RAWG, Gemini). Long Gemini 429 waits (>5 min) mean daily quota: stop, don't sleep.
 - Profile changes re-embed everything (~7 min local). Judge them on a fixed set of seed games, not one example; tag ranking (`PROFILE_RANK_TAGS`) made results worse by eye.
+- Keep raw source data (wikitext in `wiki_pages`) separate from derived data (chunks, vectors): chunker changes -> `rechunk` + `embed`, no re-download.
+- Lore embeddings use retrieval mode: documents plain, queries get the bge query prefix (`make_embedder("query")`).
 - Commit messages: all lowercase, no AI attribution/co-author lines.
