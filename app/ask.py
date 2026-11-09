@@ -83,6 +83,17 @@ def check_citations(answer: str, cited: list[int], n_sources: int) -> tuple[str,
     return re.sub(r"\s+([.,;])", r"\1", text).strip(), sorted(used)
 
 
+def effective_milestone(hit: dict, finished: int) -> int | None:
+    """The tagger's milestone, but sections the WIKI ITSELF marks as spoilers
+    ({{spoiler}} inline or on the whole page) stay hidden until the main story is
+    finished. Wiki editors know the plot; the tagger only saw a sample. (The tagger
+    put Portal 2's "Wheatley > Overview" at chapter 1, revealing he's the final boss.)"""
+    m = hit.get("milestone")
+    if m is not None and (hit.get("spoiler") or hit.get("page_spoiler")):
+        return max(m, finished)
+    return m
+
+
 def is_visible(hit: dict, max_milestone: int | None) -> bool:
     """With protection on, only sections tagged at/before the user's progress
     are visible. Untagged sections are hidden: never guess in the leaky direction."""
@@ -112,6 +123,10 @@ def ask(conn, store, embedder, client, question: str, game: dict,
         # fetch a bigger pool, since some of it will be hidden
         pool = hybrid_search(conn, store, query_vec, question, game["id"],
                              k=config.SPOILER_RETRIEVE_POOL)
+        from app.progress import finished_index
+        finished = finished_index(game["name"])
+        for h in pool:
+            h["milestone"] = effective_milestone(h, finished)
         hits = [h for h in pool if is_visible(h, max_milestone)][:config.ANSWER_CONTEXT_CHUNKS]
         hidden = [h for h in pool if not is_visible(h, max_milestone)]
     best = best_similarity(hits)

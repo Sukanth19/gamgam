@@ -98,6 +98,14 @@ def test_protection_hides_later_and_untagged_sections(env):
     assert "Hornet guards" not in client.prompt                # untagged -> hidden
 
 
+def test_wiki_spoiler_marks_override_early_tags():
+    from app.ask import effective_milestone
+    assert effective_milestone({"milestone": 1, "spoiler": 1, "page_spoiler": 0}, finished=5) == 5
+    assert effective_milestone({"milestone": 6, "spoiler": 0, "page_spoiler": 1}, finished=5) == 6
+    assert effective_milestone({"milestone": 1, "spoiler": 0, "page_spoiler": 0}, finished=5) == 1
+    assert effective_milestone({"milestone": None, "spoiler": 1, "page_spoiler": 0}, finished=5) is None
+
+
 def test_much_better_hidden_match_skips_llm(env):
     conn, store = env
     client = FakeClient(answer_citing_all(1))

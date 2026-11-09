@@ -1,6 +1,6 @@
 # gamgam — game recommender + game lore q&a
 
-A learning project: a Python RAG app built on the Gemini API (free tier).
+A learning project: a Python RAG app. Runtime LLM is local (Ollama, qwen3:8b on the RTX 4060); Gemini is only used for the one-time spoiler tagging.
 The user is learning, so briefly explain the key decisions when changing code.
 
 ## Roadmap
@@ -9,11 +9,12 @@ The user is learning, so briefly explain the key decisions when changing code.
 3. [done] Wiki lore (MediaWiki API) for Hollow Knight, Outer Wilds, Witcher 3, Portal 2: 775 pages -> ~5.1k chunks, ~18 min to embed locally. Spoilers: Portal marks inline `{{spoiler|..}}`, Outer Wilds whole pages; HK and Witcher don't mark spoilers (phase 6 needs another signal, e.g. area/quest categories)
 4. [done] Lore Q&A: hybrid BM25 (SQLite FTS5) + vector search fused with RRF, grounded Gemini answers with checked/renumbered citations, "I don't know" via similarity gate (0.55, calibrated on 16 questions) + model's answerable flag. Eval seed set: `eval/lore_questions.jsonl`
 5. [done] Intent router (rules -> wiki-title entities -> BM25 game vote -> Gemini fallback) + Streamlit chat UI (`uv run streamlit run streamlit_app.py`)
-6. Spoiler control (filter lore by how far the user has played)
+6. [done] Spoiler control: per-game milestones (`app/progress.py`), every wiki section tagged by Gemini from a 120-word sample (`python -m app.spoilers tag`), lore filtered by the user's progress. Untagged = hidden; wiki `{{spoiler}}` marks hide until the main story is finished; if hidden matches clearly beat visible ones -> "revealed later". Errs toward over-hiding. Eval cases: `eval/spoiler_questions.jsonl`
 7. Evaluation harness
 
 ## Stack
-- Python 3.12 (managed with uv; `uv sync`, `uv run ...`), google-genai SDK, ChromaDB (local persistent), SQLite, httpx; Streamlit later
+- Python 3.12 (managed with uv; `uv sync`, `uv run ...`), ChromaDB (local persistent), SQLite, httpx, Streamlit; google-genai SDK (optional)
+- LLM: `LLM_PROVIDER` (.env) = `ollama` (default; `OLLAMA_MODEL=qwen3:8b`, schema-constrained JSON, thinking off; 16/16 on eval/lore_questions) or `gemini`. Spoiler tagging uses `SPOILER_TAG_PROVIDER` (default gemini: qwen3:8b tagged 27% of HK sections 2+ milestones too early)
 - Embeddings: `EMBED_PROVIDER` (.env) = `local` (default; `BAAI/bge-base-en-v1.5` on CPU via fastembed, no limits, ~7 min for 2000 games) or `gemini` (`gemini-embedding-001`; free tier ran out at ~1000 texts/day). Each provider has its own Chroma collection `games_<source>_<provider>`. Model names live in `app/config.py`, never hardcoded elsewhere.
 - API keys in `.env` (git-ignored), loaded with python-dotenv; `.env.example` documents them.
 
@@ -35,7 +36,9 @@ The user is learning, so briefly explain the key decisions when changing code.
 - `app/wiki_client.py` – MediaWiki API client (batched page fetch, follows `continue`, ~1 req/s)
 - `app/chunking.py` – wikitext -> chunks: infobox facts, keeps quote/dialogue/spoiler template text, HTML headings, skips gallery/trivia/bugs, ~250-word chunks w/ overlap
 - `app/wiki.py` – `python -m app.wiki fetch [--game X] [--force] | rechunk | embed | search "q" [--game X] | stats`
-- `app/llm.py` – shared Gemini JSON helper: model fallback (`CHAT_MODELS`), 60s timeout, never raises
+- `app/llm.py` – `make_client(provider)` + `generate_json(client, prompt, Schema)`: Ollama or Gemini (model fallback, timeout); never raises
+- `app/progress.py` – story milestones per game + `parse_progress`
+- `app/spoilers.py` – `python -m app.spoilers tag [--game X] [--retag] [--provider] | status | progress "Game" "milestone"|off`
 - `app/retrieval.py` – hybrid search: vector + BM25 (`lore_fts`), Reciprocal Rank Fusion
 - `app/ask.py` – `python -m app.ask "question" --game X [--debug]`
 - `app/router.py` – intent + game detection; single-word titles ("Inside", "Journey") need title-case to match
@@ -54,4 +57,5 @@ The user is learning, so briefly explain the key decisions when changing code.
 - FTS5 queries are built by `db.fts_query` (quoted word tokens OR'd): never pass raw user text to MATCH.
 - Citations: answers may only cite sources that were sent; `check_citations` drops others and splits "[1, 2]".
 - UI smoke test: `streamlit.testing.v1.AppTest` drives streamlit_app.py headlessly (loads real models; not in the unit suite).
+- Resume an interrupted tag run WITHOUT `--retag` (it clears that game's tags first).
 - Commit messages: all lowercase, no AI attribution/co-author lines.

@@ -1,0 +1,13 @@
+{"game": "Hollow Knight", "progress": "City of Tears", "question": "how did the pale king seal the radiance", "expect": "hidden", "note": "leaked via Lurien > Lore with 35-word tagger samples"}
+{"game": "Hollow Knight", "progress": "City of Tears", "question": "who is the hollow knight", "expect": "hidden", "note": "qwen3 invented an answer from False Knight/Zote before the hidden-margin rule"}
+{"game": "Hollow Knight", "progress": "City of Tears", "question": "who is lurien", "expect": "hidden"}
+{"game": "Hollow Knight", "progress": "City of Tears", "question": "where is the city of tears", "expect": "answer"}
+{"game": "Hollow Knight", "progress": "City of Tears", "question": "who is the pale king", "expect": "answer", "note": "currently hidden (over-cautious): worship of the Pale King is known early"}
+{"game": "Outer Wilds", "progress": "Timber Hearth", "question": "what causes the time loop", "expect": "hidden"}
+{"game": "Outer Wilds", "progress": "Timber Hearth", "question": "who are the nomai", "expect": "answer", "note": "currently hidden (over-cautious): the museum introduces them"}
+{"game": "Portal 2", "progress": "chapter 2", "question": "who is wheatley", "expect": "hidden", "note": "leaked 'final antagonist' until wiki {{spoiler}} marks were honoured"}
+{"game": "Portal 2", "progress": "chapter 9", "question": "who is wheatley", "expect": "answer"}
+{"game": "Portal 2", "progress": "chapter 2", "question": "who is caroline", "expect": "hidden"}
+{"game": "Portal 2", "progress": "chapter 2", "question": "what is aperture science", "expect": "answer", "note": "currently hidden (over-cautious): known from Portal 1"}
+{"game": "The Witcher 3", "progress": "white orchard", "question": "who is the bloody baron", "expect": "hidden"}
+{"game": "The Witcher 3", "progress": "velen", "question": "what happens to the bloody baron's wife", "expect": "hidden", "note": "currently answered: milestones too coarse (questline start vs end both 'Velen')"}
