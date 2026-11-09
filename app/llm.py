@@ -69,9 +69,11 @@ class OllamaClient:
         return None
 
 
-def make_client():
-    """The configured LLM client, or None if it isn't usable (callers degrade)."""
-    if config.LLM_PROVIDER == "ollama":
+def make_client(provider: str | None = None):
+    """The configured LLM client, or None if it isn't usable (callers degrade).
+    provider: "ollama" | "gemini"; defaults to LLM_PROVIDER."""
+    provider = provider or config.LLM_PROVIDER
+    if provider == "ollama":
         client = OllamaClient()
         return client if client.available() else None
     if not config.GEMINI_API_KEY:

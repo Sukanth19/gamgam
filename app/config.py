@@ -53,6 +53,11 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:8b")
 OLLAMA_TIMEOUT_S = 300       # local model: slow first load is fine, but never hang forever
 OLLAMA_NUM_CTX = 8192        # context window; spoiler-tagging prompts are ~4-5k tokens
 OLLAMA_RETRIES = 2           # retry when the output doesn't match the JSON schema
+# Spoiler tagging is a one-time build step that needs real knowledge of each game's
+# plot twists. qwen3:8b tagged 27% of Hollow Knight sections 2+ milestones too EARLY
+# vs Gemini (e.g. put the secret Great Nailsage Sly boss at the start), which would
+# leak spoilers - so tagging defaults to Gemini; everything at runtime uses LLM_PROVIDER.
+SPOILER_TAG_PROVIDER = os.getenv("SPOILER_TAG_PROVIDER", "gemini").strip().lower()
 
 # --- Recommendations ---
 DISLIKE_WEIGHT = 0.5       # Rocchio beta: how hard dislikes push the taste vector away

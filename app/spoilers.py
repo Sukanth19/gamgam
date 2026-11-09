@@ -110,6 +110,8 @@ def main():
     t = sub.add_parser("tag")
     t.add_argument("--game")
     t.add_argument("--limit", type=int, help="only this many pages per game (testing)")
+    t.add_argument("--provider", choices=["gemini", "ollama"], default=config.SPOILER_TAG_PROVIDER,
+                   help="LLM for tagging (default gemini: it knows the games' plot twists)")
     sub.add_parser("status")
     p = sub.add_parser("progress")
     p.add_argument("game")
@@ -120,9 +122,10 @@ def main():
     conn = db.connect()
     try:
         if args.cmd == "tag":
-            client = llm.make_client()
+            client = llm.make_client(args.provider)
             if client is None:
-                sys.exit("error: GEMINI_API_KEY is needed for tagging")
+                sys.exit(f"error: {args.provider} isn't available for tagging (see warnings above)")
+            print(f"tagging with {args.provider}")
             for w in WIKIS:
                 if args.game and args.game.lower() not in w["game"].lower():
                     continue
