@@ -38,7 +38,7 @@ EMBEDDING_DIM = 768
 # Chat models, tried in order: free-tier models often return 503 "high demand",
 # so we fall back to the next one instead of failing.
 # 3.5-flash first: 3.8-flash was overloaded (503/504) on every call in 2026-11 testing.
-CHAT_MODELS = ["gemini-3.5-flash", "gemini-3.8-flash", "gemini-2.5-flash", "gemini-flash-lite-latest"]
+CHAT_MODELS = ["gemini-3.5-flash", "gemini-3.8-flash", "gemini-flash-lite-latest"]   # 2.5-flash retired (404) 2026-11
 CHAT_MODEL = CHAT_MODELS[0]
 CHAT_RETRIES_PER_MODEL = 2
 CHAT_TIMEOUT_S = 60         # per request; a stalled model is skipped
