@@ -132,7 +132,13 @@ ANSWER_CONTEXT_CHUNKS = 8    # chunks sent to the LLM as numbered sources
 MIN_ANSWER_SIMILARITY = 0.55
 
 # --- Spoiler tagging (phase 6) ---
-SPOILER_PAGES_PER_CALL = 10   # wiki pages (all their sections) per Gemini tagging call
+SPOILER_PAGES_PER_CALL = 6    # wiki pages (all their sections) per Gemini tagging call
+SPOILER_SAMPLE_WORDS = 120    # words of each section shown to the tagger. 35 was too few: Lurien's
+                              # "Lore" opens harmlessly and reveals he's a Dreamer further down
+# With protection on: if the best HIDDEN match beats the best visible one by this much,
+# the real answer is a spoiler -> "revealed later", without asking the LLM to stretch
+# weakly related visible text into an answer (qwen3:8b did exactly that).
+SPOILER_HIDDEN_MARGIN = 0.05
 SPOILER_MAX_SECTIONS = 25     # per page in a call; extras are tagged on the next run
 SPOILER_CALL_INTERVAL_S = 4.0 # stay under free-tier requests-per-minute limits
 SPOILER_RETRIEVE_POOL = 40    # fused candidates fetched before hiding spoilers (more than usual,

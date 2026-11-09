@@ -98,6 +98,16 @@ def test_protection_hides_later_and_untagged_sections(env):
     assert "Hornet guards" not in client.prompt                # untagged -> hidden
 
 
+def test_much_better_hidden_match_skips_llm(env):
+    conn, store = env
+    client = FakeClient(answer_citing_all(1))
+    # hidden "Fate" scores 0.857, visible intro 0.802: gap 0.055 >= margin 0.05
+    res = ask(conn, store, FakeEmbedder([1, -0.6, 0]), client, "how was the radiance sealed", GAME,
+              max_milestone=2)
+    assert res.reason == "revealed later"
+    assert client.calls == 0                                   # weak visible text never reached the LLM
+
+
 def test_hidden_answer_says_revealed_later_not_idk(env):
     conn, store = env
     client = FakeClient(LoreAnswer(answerable=False, citations=[], answer="no"))

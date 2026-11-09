@@ -115,8 +115,13 @@ def ask(conn, store, embedder, client, question: str, game: dict,
         hits = [h for h in pool if is_visible(h, max_milestone)][:config.ANSWER_CONTEXT_CHUNKS]
         hidden = [h for h in pool if not is_visible(h, max_milestone)]
     best = best_similarity(hits)
+    best_hidden = best_similarity(hidden)
     # Is there a strong answer we're hiding? Then "I don't know" would be a lie.
-    later = bool(hidden) and best_similarity(hidden) >= max(config.MIN_ANSWER_SIMILARITY, best)
+    later = bool(hidden) and best_hidden >= max(config.MIN_ANSWER_SIMILARITY, best)
+    if later and best_hidden - best >= config.SPOILER_HIDDEN_MARGIN:
+        # The real answer is clearly in hidden sections; what's visible is only loosely
+        # related. Don't let the LLM stretch it into an answer.
+        return revealed_later(game, hidden, max_milestone, hits)
     if not hits or best < config.MIN_ANSWER_SIMILARITY:
         if later:
             return revealed_later(game, hidden, max_milestone, hits)

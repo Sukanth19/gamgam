@@ -7,7 +7,7 @@
 
 Why an LLM? Hollow Knight's and Witcher's wikis don't mark spoilers at all,
 and doing 3,000+ sections by hand isn't realistic. Gemini reads each
-section's heading + first ~35 words and picks a milestone. Decisions:
+section's heading + first ~120 words and picks a milestone. Decisions:
 - Batches of ~10 pages per call (~80 calls total) to fit the free tier.
 - When unsure, pick the LATER milestone: hiding too much is the safe error.
 - Untagged sections count as spoilers while protection is on, so a partial
@@ -82,10 +82,13 @@ def tag_batch(client, game: str, pages: list[dict]) -> list[tuple[str, str, int,
     return rows
 
 
-def tag_game(conn, client, game_name: str, limit: int | None = None) -> bool:
-    """Tag all untagged sections of one game. Returns False if Gemini gave up."""
+def tag_game(conn, client, game_name: str, limit: int | None = None, retag: bool = False) -> bool:
+    """Tag all untagged sections of one game. Returns False if the LLM gave up.
+    retag: delete existing tags first (safe: untagged sections count as spoilers)."""
     game = db.find_game_by_name(conn, game_name)
-    pages = db.sections_needing_tags(conn, game["id"])
+    if retag:
+        print(f"{game_name}: cleared {db.clear_section_milestones(conn, game['id'])} old tags")
+    pages = db.sections_needing_tags(conn, game["id"], config.SPOILER_SAMPLE_WORDS)
     if limit:
         pages = pages[:limit]
     total = sum(min(len(p["sections"]), config.SPOILER_MAX_SECTIONS) for p in pages)
@@ -112,6 +115,7 @@ def main():
     t.add_argument("--limit", type=int, help="only this many pages per game (testing)")
     t.add_argument("--provider", choices=["gemini", "ollama"], default=config.SPOILER_TAG_PROVIDER,
                    help="LLM for tagging (default gemini: it knows the games' plot twists)")
+    t.add_argument("--retag", action="store_true", help="discard existing tags and tag again")
     sub.add_parser("status")
     p = sub.add_parser("progress")
     p.add_argument("game")
@@ -129,7 +133,7 @@ def main():
             for w in WIKIS:
                 if args.game and args.game.lower() not in w["game"].lower():
                     continue
-                if not tag_game(conn, client, w["game"], args.limit):
+                if not tag_game(conn, client, w["game"], args.limit, args.retag):
                     break
         elif args.cmd == "status":
             for name, tagged, total in db.milestone_coverage(conn):

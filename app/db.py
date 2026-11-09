@@ -332,7 +332,7 @@ def wiki_titles_by_game(conn: sqlite3.Connection) -> dict[str, list[str]]:
 
 # --- spoilers / progress ------------------------------------------------------
 
-def sections_needing_tags(conn: sqlite3.Connection, game_id: int, sample_words: int = 35) -> list[dict]:
+def sections_needing_tags(conn: sqlite3.Connection, game_id: int, sample_words: int = 120) -> list[dict]:
     """Pages with at least one section that has no tag for the page's current
     revision: [{page_key, title, revid, sections: [{section, sample}]}]."""
     rows = conn.execute(
@@ -343,8 +343,10 @@ def sections_needing_tags(conn: sqlite3.Connection, game_id: int, sample_words: 
         "GROUP BY p.page_key, c.section ORDER BY p.page_key, pos", (game_id,)).fetchall()
     pages: dict[str, dict] = {}
     for r in rows:
-        text = conn.execute("SELECT text FROM lore_chunks WHERE page_key = ? AND section = ? "
-                            "ORDER BY position LIMIT 1", (r["page_key"], r["section"])).fetchone()[0]
+        # sample from the whole section (all its chunks), not just the first chunk
+        parts = conn.execute("SELECT text FROM lore_chunks WHERE page_key = ? AND section = ? "
+                             "ORDER BY position", (r["page_key"], r["section"])).fetchall()
+        text = " ".join(p[0] for p in parts)
         page = pages.setdefault(r["page_key"], {"page_key": r["page_key"], "title": r["title"],
                                                 "revid": r["revid"], "sections": []})
         page["sections"].append({"section": r["section"] or "(intro)", "raw_section": r["section"],
@@ -385,3 +387,9 @@ def set_progress(conn: sqlite3.Connection, game_id: int, milestone: int | None):
             conn.execute("INSERT INTO game_progress (game_id, milestone) VALUES (?, ?) "
                          "ON CONFLICT(game_id) DO UPDATE SET milestone = excluded.milestone, "
                          "updated_at = datetime('now')", (game_id, milestone))
+
+
+def clear_section_milestones(conn: sqlite3.Connection, game_id: int) -> int:
+    with conn:
+        return conn.execute("DELETE FROM section_milestones WHERE page_key IN "
+                            "(SELECT page_key FROM wiki_pages WHERE game_id = ?)", (game_id,)).rowcount
