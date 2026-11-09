@@ -1,0 +1,199 @@
+{
+ "when": "2026-11-09T17:48:10",
+ "tag": "noname",
+ "settings": {
+  "LLM_PROVIDER": "ollama",
+  "OLLAMA_MODEL": "qwen3:8b",
+  "EMBEDDING_MODEL": "BAAI/bge-base-en-v1.5",
+  "MIN_ANSWER_SIMILARITY": 0.55,
+  "ANSWER_CONTEXT_CHUNKS": 8,
+  "RETRIEVE_POOL": 30,
+  "RRF_K": 60,
+  "SPOILER_HIDDEN_MARGIN": 0.05,
+  "PROFILE_INCLUDE_NAME": false,
+  "PROFILE_RANK_TAGS": false,
+  "CHROMA_COLLECTION": "games_igdb_local_noname"
+ },
+ "suites": {
+  "similar": {
+   "metrics": {
+    "pass_rate": 0.75,
+    "good_per_query": 2.0,
+    "bad_rate": 0.08333333333333333,
+    "seconds_total": 0.7
+   },
+   "items": [
+    {
+     "id": "Hollow Knight",
+     "good_in_top10": 3,
+     "bad_in_top10": 0,
+     "pass": true,
+     "top": [
+      "Hollow Knight: Silksong",
+      "SteamWorld Dig 2",
+      "Dust: An Elysian Tail",
+      "Animal Well",
+      "Prince of Persia: The Lost Crown"
+     ],
+     "bad": []
+    },
+    {
+     "id": "Outer Wilds",
+     "good_in_top10": 2,
+     "bad_in_top10": 1,
+     "pass": false,
+     "top": [
+      "The Outer Worlds",
+      "Astroneer",
+      "The Dig",
+      "Starbound",
+      "Prey"
+     ],
+     "bad": [
+      "The Outer Worlds"
+     ]
+    },
+    {
+     "id": "Portal 2",
+     "good_in_top10": 2,
+     "bad_in_top10": 0,
+     "pass": true,
+     "top": [
+      "Portal",
+      "Axiom Verge",
+      "SteamWorld Dig 2",
+      "CrossCode",
+      "The Room Two"
+     ],
+     "bad": []
+    },
+    {
+     "id": "Stardew Valley",
+     "good_in_top10": 2,
+     "bad_in_top10": 0,
+     "pass": true,
+     "top": [
+      "My Time at Portia",
+      "Animal Crossing: City Folk",
+      "Sunflower Land",
+      "Fable",
+      "Animal Crossing: Wild World"
+     ],
+     "bad": []
+    },
+    {
+     "id": "Doom Eternal",
+     "good_in_top10": 4,
+     "bad_in_top10": 0,
+     "pass": true,
+     "top": [
+      "Doom: The Dark Ages",
+      "Doom II: Hell on Earth",
+      "Doom",
+      "Doom 64",
+      "Doom 3"
+     ],
+     "bad": []
+    },
+    {
+     "id": "Celeste",
+     "good_in_top10": 1,
+     "bad_in_top10": 0,
+     "pass": true,
+     "top": [
+      "Monument Valley II",
+      "Journey",
+      "Blue Prince",
+      "SteamWorld Dig 2",
+      "Ghostrunner"
+     ],
+     "bad": []
+    },
+    {
+     "id": "The Witcher 3: Wild Hunt",
+     "good_in_top10": 4,
+     "bad_in_top10": 0,
+     "pass": true,
+     "top": [
+      "The Witcher",
+      "The Witcher 2: Assassins of Kings",
+      "Bloodborne",
+      "Dragon Age: Inquisition",
+      "Dark Messiah of Might and Magic"
+     ],
+     "bad": []
+    },
+    {
+     "id": "Dark Souls III",
+     "good_in_top10": 3,
+     "bad_in_top10": 0,
+     "pass": true,
+     "top": [
+      "Dark Souls",
+      "Dark Souls: Remastered",
+      "Dark Souls II",
+      "Demon's Souls",
+      "Lords of the Fallen"
+     ],
+     "bad": []
+    },
+    {
+     "id": "Hades",
+     "good_in_top10": 0,
+     "bad_in_top10": 0,
+     "pass": false,
+     "top": [
+      "Hades II",
+      "God of War III",
+      "God of War: Ascension",
+      "Diablo IV",
+      "God of War: Chains of Olympus"
+     ],
+     "bad": []
+    },
+    {
+     "id": "Disco Elysium",
+     "good_in_top10": 1,
+     "bad_in_top10": 0,
+     "pass": true,
+     "top": [
+      "The Forgotten City",
+      "Yakuza: Like a Dragon",
+      "S.T.A.L.K.E.R. 2: Heart of Chornobyl",
+      "Omori",
+      "Nine Hours, Nine Persons, Nine Doors"
+     ],
+     "bad": []
+    },
+    {
+     "id": "FIFA 23",
+     "good_in_top10": 2,
+     "bad_in_top10": 0,
+     "pass": true,
+     "top": [
+      "FIFA 22",
+      "FIFA 21",
+      "EA Sports FC 24",
+      "FIFA 19",
+      "EA Sports FC 25"
+     ],
+     "bad": []
+    },
+    {
+     "id": "Sid Meier's Civilization V",
+     "good_in_top10": 0,
+     "bad_in_top10": 0,
+     "pass": false,
+     "top": [
+      "Sid Meier's Civilization VI",
+      "Sid Meier's Civilization III",
+      "Sid Meier's Civilization",
+      "Sid Meier's Civilization IV",
+      "Sid Meier's Civilization II"
+     ],
+     "bad": []
+    }
+   ]
+  }
+ }
+}

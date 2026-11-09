@@ -74,10 +74,11 @@ MMR_LAMBDA = 0.7           # 1.0 = pure relevance, lower = more variety
 DATA_DIR = ROOT / "data"
 DB_PATH = DATA_DIR / f"games_{GAME_SOURCE}.db"
 CHROMA_DIR = DATA_DIR / "chroma"
-# Put the game's NAME in its embedded profile? Names make title look-alikes match
-# (Outer Wilds -> The Outer Worlds) but also help sequels find each other. Experiment
-# with PROFILE_INCLUDE_NAME=0 (own collection, so both versions can coexist).
-PROFILE_INCLUDE_NAME = os.getenv("PROFILE_INCLUDE_NAME", "1") == "1"
+# Put the game's NAME in its embedded profile? Eval (eval/similar_games, 12 seeds):
+# with names 8/12 pass, without 10/12 (fixed Stardew->Rust and Disco Elysium, broke
+# nothing). Note: Outer Wilds -> The Outer Worlds persists without names - that comes
+# from the description text, not the title. Each setting has its own collection.
+PROFILE_INCLUDE_NAME = os.getenv("PROFILE_INCLUDE_NAME", "0") == "1"
 CHROMA_COLLECTION = f"games_{GAME_SOURCE}_{EMBED_PROVIDER}" + ("" if PROFILE_INCLUDE_NAME else "_noname")
 MODELS_DIR = DATA_DIR / "models"   # local model downloads (git-ignored with data/)
 

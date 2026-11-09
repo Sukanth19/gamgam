@@ -12,7 +12,8 @@ def game(**kw):
     return g
 
 
-def test_profile_contains_name_genres_tags_and_clean_description():
+def test_profile_contains_name_genres_tags_and_clean_description(monkeypatch):
+    monkeypatch.setattr(embeddings.config, "PROFILE_INCLUDE_NAME", True)
     p = build_profile(game())
     assert p.splitlines()[0] == "Hollow Knight."
     assert "Genres: Action, Platformer." in p
@@ -26,9 +27,15 @@ def test_profile_drops_noise_tags():
     assert "Steam Achievements" not in p and "Singleplayer" not in p
 
 
-def test_profile_handles_missing_fields():
+def test_profile_handles_missing_fields(monkeypatch):
+    monkeypatch.setattr(embeddings.config, "PROFILE_INCLUDE_NAME", True)
     p = build_profile({"name": "Mystery", "genres": [], "tags": [], "description": None})
     assert p == "Mystery."
+
+
+def test_profile_without_name_by_default():
+    p = build_profile(game())
+    assert "Hollow Knight" not in p and p.startswith("Genres: Action, Platformer.")
 
 
 def test_clean_description_strips_spanish_translation_and_truncates():
