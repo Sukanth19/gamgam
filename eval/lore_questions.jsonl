@@ -14,3 +14,29 @@
 {"game": "Outer Wilds", "question": "what is the capital of France", "answerable": false}
 {"game": "Portal 2", "question": "who won the 2018 world cup", "answerable": false}
 {"game": "The Witcher 3", "question": "how do I install the game on linux", "answerable": false}
+{"game": "Hollow Knight", "question": "who is Quirrel", "answerable": true, "expect_pages": ["Quirrel"], "draft": true}
+{"game": "Hollow Knight", "question": "what is the infection", "answerable": true, "expect_pages": ["Infection", "Radiance"], "draft": true}
+{"game": "Hollow Knight", "question": "who were the five great knights", "answerable": true, "expect_pages": ["Five Great Knights"], "draft": true}
+{"game": "Hollow Knight", "question": "who is the white lady", "answerable": true, "expect_pages": ["White Lady"], "draft": true}
+{"game": "Hollow Knight", "question": "what is the dung defender's real name", "answerable": true, "expect_pages": ["Dung Defender", "Five Great Knights"], "draft": true}
+{"game": "Hollow Knight", "question": "what does the nailsmith want", "answerable": true, "expect_pages": ["Nailsmith"], "draft": true}
+{"game": "Outer Wilds", "question": "who is Gabbro", "answerable": true, "expect_pages": ["Gabbro"], "draft": true}
+{"game": "Outer Wilds", "question": "what is the quantum moon", "answerable": true, "expect_pages": ["Quantum Moon"], "draft": true}
+{"game": "Outer Wilds", "question": "what happened to the interloper", "answerable": true, "expect_pages": ["Interloper"], "draft": true}
+{"game": "Outer Wilds", "question": "what is the orbital probe cannon for", "answerable": true, "expect_pages": ["Orbital Probe Cannon"], "draft": true}
+{"game": "Outer Wilds", "question": "who is the prisoner", "answerable": true, "expect_pages": ["Prisoner"], "draft": true}
+{"game": "Outer Wilds", "question": "what is brittle hollow like", "answerable": true, "expect_pages": ["Brittle Hollow"], "draft": true}
+{"game": "Portal 2", "question": "who is Chell", "answerable": true, "expect_pages": ["Chell"], "draft": true}
+{"game": "Portal 2", "question": "who is Doug Rattmann", "answerable": true, "expect_pages": ["Doug Rattmann"], "draft": true}
+{"game": "Portal 2", "question": "what is the weighted companion cube", "answerable": true, "expect_pages": ["Weighted Companion Cube"], "draft": true}
+{"game": "Portal 2", "question": "who is Cave Johnson", "answerable": true, "expect_pages": ["Cave Johnson"], "draft": true}
+{"game": "Portal 2", "question": "what are the turrets", "answerable": true, "expect_pages": ["Turrets", "Sentry Turret"], "draft": true}
+{"game": "The Witcher 3", "question": "who is Gaunter O'Dimm", "answerable": true, "expect_pages": ["Gaunter O'Dimm"], "draft": true}
+{"game": "The Witcher 3", "question": "who is Vesemir", "answerable": true, "expect_pages": ["Vesemir"], "draft": true}
+{"game": "The Witcher 3", "question": "who leads the wild hunt", "answerable": true, "expect_pages": ["Eredin Bréacc Glas"], "draft": true}
+{"game": "The Witcher 3", "question": "what is a drowner", "answerable": true, "expect_pages": ["Drowner"], "draft": true}
+{"game": "The Witcher 3", "question": "who is Dandelion", "answerable": true, "expect_pages": ["Dandelion"], "draft": true}
+{"game": "The Witcher 3", "question": "who are the crones of crookback bog", "answerable": true, "expect_pages": ["Crones"], "draft": true}
+{"game": "Hollow Knight", "question": "how much does hollow knight cost on steam", "answerable": false, "draft": true}
+{"game": "Portal 2", "question": "what is wheatley's favourite colour", "answerable": false, "draft": true}
+{"game": "Outer Wilds", "question": "how many copies did outer wilds sell", "answerable": false, "draft": true}

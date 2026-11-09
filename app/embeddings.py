@@ -107,7 +107,7 @@ def _dedupe_paragraphs(text: str) -> str:
 def build_profile(game: dict, counts: dict[str, int] | None = None, n_games: int = 0) -> str:
     """One text blob per game; this is what actually gets embedded.
     Pass `counts`/`n_games` (from tag_counts) to rank tags by usefulness."""
-    parts = [f"{game['name']}."]
+    parts = [f"{game['name']}."] if config.PROFILE_INCLUDE_NAME else []
     if game.get("genres"):
         parts.append("Genres: " + ", ".join(game["genres"]) + ".")
     tags = select_tags(game.get("tags") or [], counts, n_games)

@@ -1,0 +1,311 @@
+{
+ "when": "2026-11-09T17:37:58",
+ "tag": "baseline",
+ "settings": {
+  "LLM_PROVIDER": "ollama",
+  "OLLAMA_MODEL": "qwen3:8b",
+  "EMBEDDING_MODEL": "BAAI/bge-base-en-v1.5",
+  "MIN_ANSWER_SIMILARITY": 0.55,
+  "ANSWER_CONTEXT_CHUNKS": 8,
+  "RETRIEVE_POOL": 30,
+  "RRF_K": 60,
+  "SPOILER_HIDDEN_MARGIN": 0.05,
+  "PROFILE_INCLUDE_NAME": true,
+  "PROFILE_RANK_TAGS": false,
+  "CHROMA_COLLECTION": "games_igdb_local"
+ },
+ "suites": {
+  "retrieval": {
+   "metrics": {
+    "hit@1": 0.9090909090909091,
+    "hit@3": 1.0,
+    "hit@8": 1.0,
+    "mrr": 0.9393939393939394,
+    "seconds_total": 1.7
+   },
+   "items": [
+    {
+     "id": "who is the pale king",
+     "rank": 1,
+     "top": [
+      "Pale King",
+      "Pale King",
+      "Pale King"
+     ]
+    },
+    {
+     "id": "what happened to the hollow knight vessel",
+     "rank": 1,
+     "top": [
+      "Vessels",
+      "Higher Beings",
+      "Vessels"
+     ]
+    },
+    {
+     "id": "where can I find Grimm",
+     "rank": 1,
+     "top": [
+      "Grimm",
+      "Nightmare King Grimm",
+      "Grimm Troupe (Quest)"
+     ]
+    },
+    {
+     "id": "who are Hornet's parents",
+     "rank": 3,
+     "top": [
+      "Hornet Protector",
+      "Hornet Sentinel",
+      "Hornet"
+     ]
+    },
+    {
+     "id": "who is Ilex",
+     "rank": 1,
+     "top": [
+      "Ilex",
+      "Ilex",
+      "Ilex"
+     ]
+    },
+    {
+     "id": "why did the Nomai come to the solar system",
+     "rank": 1,
+     "top": [
+      "Nomai",
+      "Eye of the Universe",
+      "Computer"
+     ]
+    },
+    {
+     "id": "what is the ash twin project",
+     "rank": 1,
+     "top": [
+      "Computer",
+      "Root",
+      "Hourglass Twins"
+     ]
+    },
+    {
+     "id": "who is Caroline",
+     "rank": 1,
+     "top": [
+      "Caroline",
+      "Caroline voice lines",
+      "Caroline"
+     ]
+    },
+    {
+     "id": "what is wheatley",
+     "rank": 1,
+     "top": [
+      "Wheatley",
+      "Exile Vilify",
+      "Wheatley"
+     ]
+    },
+    {
+     "id": "how do I fight a leshen",
+     "rank": 1,
+     "top": [
+      "Leshy",
+      "Leshy",
+      "Leshy"
+     ]
+    },
+    {
+     "id": "who is Ciri's father",
+     "rank": 1,
+     "top": [
+      "Ciri",
+      "Emhyr var Emreis",
+      "Ciri"
+     ]
+    }
+   ]
+  },
+  "similar": {
+   "metrics": {
+    "pass_rate": 0.6666666666666666,
+    "good_per_query": 2.1666666666666665,
+    "bad_rate": 0.16666666666666666,
+    "seconds_total": 0.2
+   },
+   "items": [
+    {
+     "id": "Hollow Knight",
+     "good_in_top10": 3,
+     "bad_in_top10": 0,
+     "pass": true,
+     "top": [
+      "Hollow Knight: Silksong",
+      "Animal Well",
+      "Terraria",
+      "SteamWorld Dig 2",
+      "Demon's Souls"
+     ],
+     "bad": []
+    },
+    {
+     "id": "Outer Wilds",
+     "good_in_top10": 3,
+     "bad_in_top10": 1,
+     "pass": false,
+     "top": [
+      "The Outer Worlds",
+      "Astroneer",
+      "Prey",
+      "Starbound",
+      "Elite: Dangerous"
+     ],
+     "bad": [
+      "The Outer Worlds"
+     ]
+    },
+    {
+     "id": "Portal 2",
+     "good_in_top10": 2,
+     "bad_in_top10": 0,
+     "pass": true,
+     "top": [
+      "Portal",
+      "SteamWorld Dig 2",
+      "The Room Two",
+      "The Cave",
+      "CrossCode"
+     ],
+     "bad": []
+    },
+    {
+     "id": "Stardew Valley",
+     "good_in_top10": 1,
+     "bad_in_top10": 1,
+     "pass": false,
+     "top": [
+      "My Time at Portia",
+      "Animal Crossing: City Folk",
+      "Sunflower Land",
+      "Terraria",
+      "Animal Crossing: Wild World"
+     ],
+     "bad": [
+      "Rust"
+     ]
+    },
+    {
+     "id": "Doom Eternal",
+     "good_in_top10": 5,
+     "bad_in_top10": 0,
+     "pass": true,
+     "top": [
+      "Doom: The Dark Ages",
+      "Doom",
+      "Doom II: Hell on Earth",
+      "Doom 64",
+      "Doom"
+     ],
+     "bad": []
+    },
+    {
+     "id": "Celeste",
+     "good_in_top10": 1,
+     "bad_in_top10": 0,
+     "pass": true,
+     "top": [
+      "Journey",
+      "Monument Valley II",
+      "Undertale",
+      "Limbo",
+      "Mirror's Edge"
+     ],
+     "bad": []
+    },
+    {
+     "id": "The Witcher 3: Wild Hunt",
+     "good_in_top10": 3,
+     "bad_in_top10": 0,
+     "pass": true,
+     "top": [
+      "The Witcher",
+      "Bloodborne",
+      "The Witcher 2: Assassins of Kings",
+      "Crimson Desert Enhanced",
+      "Dragon Age: Inquisition"
+     ],
+     "bad": []
+    },
+    {
+     "id": "Dark Souls III",
+     "good_in_top10": 4,
+     "bad_in_top10": 0,
+     "pass": true,
+     "top": [
+      "Dark Souls",
+      "Dark Souls: Remastered",
+      "Dark Souls II",
+      "Demon's Souls",
+      "Kingdom Hearts III"
+     ],
+     "bad": []
+    },
+    {
+     "id": "Hades",
+     "good_in_top10": 0,
+     "bad_in_top10": 0,
+     "pass": false,
+     "top": [
+      "Hades II",
+      "God of War",
+      "God of War III",
+      "God of War",
+      "God of War II"
+     ],
+     "bad": []
+    },
+    {
+     "id": "Disco Elysium",
+     "good_in_top10": 0,
+     "bad_in_top10": 0,
+     "pass": false,
+     "top": [
+      "The Forgotten City",
+      "Yakuza: Like a Dragon",
+      "S.T.A.L.K.E.R. 2: Heart of Chornobyl",
+      "Yakuza 0",
+      "Cyberpunk 2077"
+     ],
+     "bad": []
+    },
+    {
+     "id": "FIFA 23",
+     "good_in_top10": 2,
+     "bad_in_top10": 0,
+     "pass": true,
+     "top": [
+      "FIFA 22",
+      "FIFA 21",
+      "EA Sports FC 24",
+      "FIFA 19",
+      "FIFA Soccer 11"
+     ],
+     "bad": []
+    },
+    {
+     "id": "Sid Meier's Civilization V",
+     "good_in_top10": 2,
+     "bad_in_top10": 0,
+     "pass": true,
+     "top": [
+      "Sid Meier's Civilization VI",
+      "Sid Meier's Civilization II",
+      "Sid Meier's Civilization III",
+      "Sid Meier's Civilization IV",
+      "Sid Meier's Civilization"
+     ],
+     "bad": []
+    }
+   ]
+  }
+ }
+}

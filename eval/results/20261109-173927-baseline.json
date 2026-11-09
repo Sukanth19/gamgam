@@ -1,0 +1,311 @@
+{
+ "when": "2026-11-09T17:38:10",
+ "tag": "baseline",
+ "settings": {
+  "LLM_PROVIDER": "ollama",
+  "OLLAMA_MODEL": "qwen3:8b",
+  "EMBEDDING_MODEL": "BAAI/bge-base-en-v1.5",
+  "MIN_ANSWER_SIMILARITY": 0.55,
+  "ANSWER_CONTEXT_CHUNKS": 8,
+  "RETRIEVE_POOL": 30,
+  "RRF_K": 60,
+  "SPOILER_HIDDEN_MARGIN": 0.05,
+  "PROFILE_INCLUDE_NAME": true,
+  "PROFILE_RANK_TAGS": false,
+  "CHROMA_COLLECTION": "games_igdb_local"
+ },
+ "suites": {
+  "lore": {
+   "metrics": {
+    "pass_rate": 1.0,
+    "answer_rate": 1.0,
+    "cite_correct": 1.0,
+    "idk_rate": 1.0,
+    "avg_seconds": 3.825,
+    "seconds_total": 61.2
+   },
+   "items": [
+    {
+     "id": "who is the pale king",
+     "answerable": true,
+     "answered": true,
+     "pass": true,
+     "cited": [
+      "Pale King"
+     ],
+     "reason": "",
+     "seconds": 15.1
+    },
+    {
+     "id": "what happened to the hollow knight vessel",
+     "answerable": true,
+     "answered": true,
+     "pass": true,
+     "cited": [
+      "Hollow Knight"
+     ],
+     "reason": "",
+     "seconds": 4.0
+    },
+    {
+     "id": "where can I find Grimm",
+     "answerable": true,
+     "answered": true,
+     "pass": true,
+     "cited": [
+      "Grimm",
+      "Nightmare King Grimm"
+     ],
+     "reason": "",
+     "seconds": 3.1
+    },
+    {
+     "id": "who are Hornet's parents",
+     "answerable": true,
+     "answered": true,
+     "pass": true,
+     "cited": [
+      "Hornet",
+      "Herrah"
+     ],
+     "reason": "",
+     "seconds": 3.3
+    },
+    {
+     "id": "who is Ilex",
+     "answerable": true,
+     "answered": true,
+     "pass": true,
+     "cited": [
+      "Ilex",
+      "Ilex",
+      "Brittle Hollow"
+     ],
+     "reason": "",
+     "seconds": 4.4
+    },
+    {
+     "id": "why did the Nomai come to the solar system",
+     "answerable": true,
+     "answered": true,
+     "pass": true,
+     "cited": [
+      "Nomai"
+     ],
+     "reason": "",
+     "seconds": 3.8
+    },
+    {
+     "id": "what is the ash twin project",
+     "answerable": true,
+     "answered": true,
+     "pass": true,
+     "cited": [
+      "Computer",
+      "Hourglass Twins"
+     ],
+     "reason": "",
+     "seconds": 4.3
+    },
+    {
+     "id": "who is Caroline",
+     "answerable": true,
+     "answered": true,
+     "pass": true,
+     "cited": [
+      "Caroline",
+      "Caroline"
+     ],
+     "reason": "",
+     "seconds": 4.7
+    },
+    {
+     "id": "what is wheatley",
+     "answerable": true,
+     "answered": true,
+     "pass": true,
+     "cited": [
+      "Wheatley",
+      "Wheatley",
+      "Wheatley",
+      "Wheatley"
+     ],
+     "reason": "",
+     "seconds": 5.6
+    },
+    {
+     "id": "how do I fight a leshen",
+     "answerable": true,
+     "answered": true,
+     "pass": true,
+     "cited": [
+      "Leshy",
+      "Leshy",
+      "Leshy"
+     ],
+     "reason": "",
+     "seconds": 5.9
+    },
+    {
+     "id": "who is Ciri's father",
+     "answerable": true,
+     "answered": true,
+     "pass": true,
+     "cited": [
+      "Ciri",
+      "Ciri",
+      "Geralt of Rivia"
+     ],
+     "reason": "",
+     "seconds": 4.9
+    },
+    {
+     "id": "what is the Pale King's favourite food",
+     "answerable": false,
+     "answered": false,
+     "pass": true,
+     "cited": [],
+     "reason": "model: sources don't contain the answer",
+     "seconds": 1.8
+    },
+    {
+     "id": "what is Geralt's favourite pizza",
+     "answerable": false,
+     "answered": false,
+     "pass": true,
+     "cited": [],
+     "reason": "best match 0.54 < 0.55",
+     "seconds": 0.1
+    },
+    {
+     "id": "what is the capital of France",
+     "answerable": false,
+     "answered": false,
+     "pass": true,
+     "cited": [],
+     "reason": "best match 0.38 < 0.55",
+     "seconds": 0.1
+    },
+    {
+     "id": "who won the 2018 world cup",
+     "answerable": false,
+     "answered": false,
+     "pass": true,
+     "cited": [],
+     "reason": "best match 0.42 < 0.55",
+     "seconds": 0.0
+    },
+    {
+     "id": "how do I install the game on linux",
+     "answerable": false,
+     "answered": false,
+     "pass": true,
+     "cited": [],
+     "reason": "best match 0.51 < 0.55",
+     "seconds": 0.1
+    }
+   ]
+  },
+  "spoilers": {
+   "metrics": {
+    "pass_rate": 0.6923076923076923,
+    "leak_rate": 0.125,
+    "over_hide_rate": 0.6,
+    "seconds_total": 15.6
+   },
+   "items": [
+    {
+     "id": "Hollow Knight @ City of Tears: how did the pale king seal the radiance",
+     "expect": "hidden",
+     "got": "hidden",
+     "pass": true,
+     "reason": "revealed later"
+    },
+    {
+     "id": "Hollow Knight @ City of Tears: who is the hollow knight",
+     "expect": "hidden",
+     "got": "hidden",
+     "pass": true,
+     "reason": "revealed later"
+    },
+    {
+     "id": "Hollow Knight @ City of Tears: who is lurien",
+     "expect": "hidden",
+     "got": "hidden",
+     "pass": true,
+     "reason": "revealed later"
+    },
+    {
+     "id": "Hollow Knight @ City of Tears: where is the city of tears",
+     "expect": "answer",
+     "got": "answer",
+     "pass": true,
+     "reason": ""
+    },
+    {
+     "id": "Hollow Knight @ City of Tears: who is the pale king",
+     "expect": "answer",
+     "got": "hidden",
+     "pass": false,
+     "reason": "revealed later"
+    },
+    {
+     "id": "Outer Wilds @ Timber Hearth: what causes the time loop",
+     "expect": "hidden",
+     "got": "hidden",
+     "pass": true,
+     "reason": "revealed later"
+    },
+    {
+     "id": "Outer Wilds @ Timber Hearth: who are the nomai",
+     "expect": "answer",
+     "got": "hidden",
+     "pass": false,
+     "reason": "revealed later"
+    },
+    {
+     "id": "Portal 2 @ chapter 2: who is wheatley",
+     "expect": "hidden",
+     "got": "hidden",
+     "pass": true,
+     "reason": "revealed later"
+    },
+    {
+     "id": "Portal 2 @ chapter 9: who is wheatley",
+     "expect": "answer",
+     "got": "answer",
+     "pass": true,
+     "reason": ""
+    },
+    {
+     "id": "Portal 2 @ chapter 2: who is caroline",
+     "expect": "hidden",
+     "got": "hidden",
+     "pass": true,
+     "reason": "revealed later"
+    },
+    {
+     "id": "Portal 2 @ chapter 2: what is aperture science",
+     "expect": "answer",
+     "got": "hidden",
+     "pass": false,
+     "reason": "revealed later"
+    },
+    {
+     "id": "The Witcher 3 @ white orchard: who is the bloody baron",
+     "expect": "hidden",
+     "got": "hidden",
+     "pass": true,
+     "reason": "revealed later"
+    },
+    {
+     "id": "The Witcher 3 @ velen: what happens to the bloody baron's wife",
+     "expect": "hidden",
+     "got": "answer",
+     "pass": false,
+     "reason": ""
+    }
+   ]
+  }
+ }
+}

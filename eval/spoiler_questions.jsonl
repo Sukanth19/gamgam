@@ -11,3 +11,22 @@
 {"game": "Portal 2", "progress": "chapter 2", "question": "what is aperture science", "expect": "answer", "note": "currently hidden (over-cautious): known from Portal 1"}
 {"game": "The Witcher 3", "progress": "white orchard", "question": "who is the bloody baron", "expect": "hidden"}
 {"game": "The Witcher 3", "progress": "velen", "question": "what happens to the bloody baron's wife", "expect": "hidden", "note": "currently answered: milestones too coarse (questline start vs end both 'Velen')"}
+{"game": "Hollow Knight", "progress": "Greenpath", "question": "who is hornet", "expect": "answer", "draft": true}
+{"game": "Hollow Knight", "progress": "Greenpath", "question": "what is the radiance", "expect": "hidden", "draft": true}
+{"game": "Hollow Knight", "progress": "City of Tears", "question": "who is the soul master", "expect": "answer", "draft": true}
+{"game": "Hollow Knight", "progress": "City of Tears", "question": "what is the void", "expect": "hidden", "draft": true}
+{"game": "Hollow Knight", "progress": "ending", "question": "who is the radiance", "expect": "answer", "draft": true}
+{"game": "Hollow Knight", "progress": "dirtmouth", "question": "who is elderbug", "expect": "answer", "draft": true}
+{"game": "Outer Wilds", "progress": "Timber Hearth", "question": "who is hornfels", "expect": "answer", "draft": true}
+{"game": "Outer Wilds", "progress": "Timber Hearth", "question": "who is solanum", "expect": "hidden", "draft": true}
+{"game": "Outer Wilds", "progress": "giant's deep", "question": "what happened to the sun station", "expect": "hidden", "draft": true}
+{"game": "Outer Wilds", "progress": "quantum moon", "question": "what is the vessel", "expect": "answer", "draft": true}
+{"game": "Outer Wilds", "progress": "Timber Hearth", "question": "what is the stranger", "expect": "hidden", "draft": true}
+{"game": "Portal 2", "progress": "chapter 2", "question": "who is glados", "expect": "answer", "draft": true}
+{"game": "Portal 2", "progress": "chapter 2", "question": "who is cave johnson", "expect": "hidden", "draft": true}
+{"game": "Portal 2", "progress": "chapter 9", "question": "who is caroline", "expect": "answer", "draft": true}
+{"game": "The Witcher 3", "progress": "white orchard", "question": "who is geralt", "expect": "answer", "draft": true}
+{"game": "The Witcher 3", "progress": "white orchard", "question": "who is gaunter o'dimm really", "expect": "hidden", "draft": true}
+{"game": "The Witcher 3", "progress": "novigrad", "question": "who is triss", "expect": "answer", "draft": true}
+{"game": "The Witcher 3", "progress": "velen", "question": "how does vesemir die", "expect": "hidden", "draft": true}
+{"game": "The Witcher 3", "progress": "battle of kaer morhen", "question": "who is avallac'h", "expect": "answer", "draft": true}
