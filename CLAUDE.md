@@ -5,12 +5,12 @@ The user is learning, so briefly explain the key decisions when changing code.
 
 ## Roadmap
 1. [done] Fetch game metadata (IGDB by default; RAWG optional) into SQLite, embed it, "similar games" search
-2. [done] Play history (liked/disliked) -> taste-vector recommendations, with Gemini explaining each pick. Multi-interest: candidates from the taste vector + each liked game's neighbours; relevance blends both (`TASTE_BLEND`). Known gap: game names are in the profile, so title look-alikes match (Outer Wilds -> The Outer Worlds); evaluate removing names in phase 7
+2. [done] Play history (liked/disliked) -> taste-vector recommendations, with Gemini explaining each pick. Multi-interest: candidates from the taste vector + each liked game's neighbours; relevance blends both (`TASTE_BLEND`). Profiles are name-free since phase 7 (similar eval 8/12 -> 10/12); Outer Wilds -> The Outer Worlds persists: it comes from description text, not the title
 3. [done] Wiki lore (MediaWiki API) for Hollow Knight, Outer Wilds, Witcher 3, Portal 2: 775 pages -> ~5.1k chunks, ~18 min to embed locally. Spoilers: Portal marks inline `{{spoiler|..}}`, Outer Wilds whole pages; HK and Witcher don't mark spoilers (phase 6 needs another signal, e.g. area/quest categories)
 4. [done] Lore Q&A: hybrid BM25 (SQLite FTS5) + vector search fused with RRF, grounded Gemini answers with checked/renumbered citations, "I don't know" via similarity gate (0.55, calibrated on 16 questions) + model's answerable flag. Eval seed set: `eval/lore_questions.jsonl`
 5. [done] Intent router (rules -> wiki-title entities -> BM25 game vote -> Gemini fallback) + Streamlit chat UI (`uv run streamlit run streamlit_app.py`)
 6. [done] Spoiler control: per-game milestones (`app/progress.py`), every wiki section tagged by Gemini from a 120-word sample (`python -m app.spoilers tag`), lore filtered by the user's progress. Untagged = hidden; wiki `{{spoiler}}` marks hide until the main story is finished; if hidden matches clearly beat visible ones -> "revealed later". Errs toward over-hiding. Eval cases: `eval/spoiler_questions.jsonl`
-7. Evaluation harness
+7. [in progress] Evaluation harness: `python -m app.eval [--suite S] [--set NAME=VAL] [--tag T] | --compare A B` (results in eval/results/; runs with LLM outages are refused). Baseline: lore 42/42, retrieval hit@1 0.76 / hit@3 0.94, similar 10/12 (name-free profiles; was 8/12 with names), spoilers leak 2/16, over-hide 5/16. Section-sampled spoiler tags miss content deep in long sections (Crones > Biography tagged Velen but reveals post-Kaer Morhen events) -> next: chunk-level tagging
 
 ## Stack
 - Python 3.12 (managed with uv; `uv sync`, `uv run ...`), ChromaDB (local persistent), SQLite, httpx, Streamlit; google-genai SDK (optional)
@@ -44,7 +44,8 @@ The user is learning, so briefly explain the key decisions when changing code.
 - `app/router.py` – intent + game detection; single-word titles ("Inside", "Journey") need title-case to match
 - `app/chat.py` – `Assistant.handle(text, last_game) -> Reply`; all chat logic, no UI code
 - `streamlit_app.py` – UI only (chat, sidebar likes/dislikes, sources w/ spoiler expander); usage stats off in `.streamlit/config.toml`
-- `eval/` – question sets for phase 7
+- `app/eval.py` – evaluation suites: retrieval (no LLM), similar (no LLM), lore, spoilers
+- `eval/` – lore_questions, spoiler_questions, similar_games (.jsonl; `"draft": true` = not yet reviewed by the user); results/
 - `tests/` – pytest (`uv run pytest`)
 
 ## Conventions
@@ -58,4 +59,6 @@ The user is learning, so briefly explain the key decisions when changing code.
 - Citations: answers may only cite sources that were sent; `check_citations` drops others and splits "[1, 2]".
 - UI smoke test: `streamlit.testing.v1.AppTest` drives streamlit_app.py headlessly (loads real models; not in the unit suite).
 - Resume an interrupted tag run WITHOUT `--retag` (it clears that game's tags first).
+- Don't run two model-heavy jobs at once (embed + eval + Ollama OOM-killed Ollama on 14 GB RAM).
+- Fix individual spoiler mis-tags with `python -m app.spoilers fix "Game" "Page" "Section" N`.
 - Commit messages: all lowercase, no AI attribution/co-author lines.

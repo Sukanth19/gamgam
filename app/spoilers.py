@@ -4,6 +4,7 @@
     python -m app.spoilers status
     python -m app.spoilers progress "Hollow Knight" "City of Tears"
     python -m app.spoilers progress "Hollow Knight" off
+    python -m app.spoilers fix "Witcher 3" "Kaer Morhen" "History > After the end" 5
 
 Why an LLM? Hollow Knight's and Witcher's wikis don't mark spoilers at all,
 and doing 3,000+ sections by hand isn't realistic. Gemini reads each
@@ -117,6 +118,11 @@ def main():
                    help="LLM for tagging (default gemini: it knows the games' plot twists)")
     t.add_argument("--retag", action="store_true", help="discard existing tags and tag again")
     sub.add_parser("status")
+    f = sub.add_parser("fix", help="manually set one section's milestone (fix a leak/over-hide)")
+    f.add_argument("game")
+    f.add_argument("page")
+    f.add_argument("section", help='section path as shown in sources, "" for the intro')
+    f.add_argument("milestone", type=int)
     p = sub.add_parser("progress")
     p.add_argument("game")
     p.add_argument("milestone", help='milestone name/number, or "off"')
@@ -135,6 +141,23 @@ def main():
                     continue
                 if not tag_game(conn, client, w["game"], args.limit, args.retag):
                     sys.exit(2)       # non-zero, so chained commands (&&) stop too
+        elif args.cmd == "fix":
+            game = db.find_game_by_name(conn, args.game)
+            row = conn.execute("SELECT page_key, revid FROM wiki_pages WHERE game_id = ? AND title = ?",
+                               (game["id"], args.page)).fetchone() if game else None
+            if row is None:
+                sys.exit(f"error: no wiki page {args.page!r} for {args.game!r}")
+            ok = conn.execute("SELECT 1 FROM lore_chunks WHERE page_key = ? AND section = ?",
+                              (row[0], args.section)).fetchone()
+            if not ok:
+                secs = [r[0] for r in conn.execute("SELECT DISTINCT section FROM lore_chunks "
+                                                   "WHERE page_key = ?", (row[0],))]
+                sys.exit(f"error: no section {args.section!r}. Sections: {secs}")
+            ms = milestones_for(game["name"])
+            if not 0 <= args.milestone < len(ms):
+                sys.exit(f"error: milestone must be 0-{len(ms) - 1}")
+            db.save_section_milestones(conn, [(row[0], args.section, args.milestone, row[1])])
+            print(f"{args.page} > {args.section or '(intro)'}: now '{ms[args.milestone].label}'")
         elif args.cmd == "status":
             for name, tagged, total in db.milestone_coverage(conn):
                 game = db.find_game_by_name(conn, name)
