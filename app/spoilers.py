@@ -134,7 +134,7 @@ def main():
                 if args.game and args.game.lower() not in w["game"].lower():
                     continue
                 if not tag_game(conn, client, w["game"], args.limit, args.retag):
-                    break
+                    sys.exit(2)       # non-zero, so chained commands (&&) stop too
         elif args.cmd == "status":
             for name, tagged, total in db.milestone_coverage(conn):
                 game = db.find_game_by_name(conn, name)
