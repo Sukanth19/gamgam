@@ -43,6 +43,17 @@ CHAT_MODEL = CHAT_MODELS[0]
 CHAT_RETRIES_PER_MODEL = 2
 CHAT_TIMEOUT_S = 60         # per request; a stalled model is skipped
 
+# Chat/LLM provider: "ollama" (default) runs a model locally on your GPU - no
+# quotas, no 503s, nothing leaves your machine. "gemini" uses CHAT_MODELS above.
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama").strip().lower()
+if LLM_PROVIDER not in ("ollama", "gemini"):
+    raise RuntimeError(f"LLM_PROVIDER must be 'ollama' or 'gemini', got {LLM_PROVIDER!r}")
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:8b")
+OLLAMA_TIMEOUT_S = 300       # local model: slow first load is fine, but never hang forever
+OLLAMA_NUM_CTX = 8192        # context window; spoiler-tagging prompts are ~4-5k tokens
+OLLAMA_RETRIES = 2           # retry when the output doesn't match the JSON schema
+
 # --- Recommendations ---
 DISLIKE_WEIGHT = 0.5       # Rocchio beta: how hard dislikes push the taste vector away
 CANDIDATE_POOL = 60        # nearest neighbours of the taste vector fetched before MMR
